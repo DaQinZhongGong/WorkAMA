@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "rollback_version": "0.1.0",
+  "data_preservation_check": "passed",
+  "migration_handling": "additive migrations are retained and forward-fix is documented"
+}

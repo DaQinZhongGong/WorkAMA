@@ -1,0 +1,81 @@
+﻿# OpenTelemetry Collector configuration for WorkAMA
+#
+# Pipelines:
+#   metrics -> Prometheus exporter (scraped by Prometheus on :9464)
+#   traces  -> Tempo via OTLP HTTP
+#   logs    -> Loki via OTLP HTTP (requires Loki 3.0+ OTLP endpoint)
+#
+# Metric namespace: the resource processor sets service.namespace=workama on all
+# telemetry, which Prometheus exposes as the service_namespace label via
+# resource_to_telemetry_conversion. Metric names retain their wama_* prefix
+# (see WorkAMA-Docs/800 §2.2). This satisfies the workama namespace requirement
+# without renaming metrics.
+#
+# Endpoints for Loki/Tempo can be overridden via environment variables:
+#   LOKI_ENDPOINT (default: http://loki:3100/otlp)
+#   TEMPO_ENDPOINT (default: http://tempo:4318)
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 2s
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+  # Sets service.namespace=workama on all telemetry so Prometheus can filter
+  # by the workama namespace label and Loki/Tempo can group by namespace.
+  resource/workama:
+    attributes:
+      - key: service.namespace
+        value: workama
+        action: upsert
+      - key: deployment.environment
+        value: ${env:WORKAMA_ENV:-staging}
+        action: upsert
+
+exporters:
+  # Metrics -> Prometheus (scraped on :9464)
+  prometheus:
+    endpoint: 0.0.0.0:9464
+    resource_to_telemetry_conversion:
+      enabled: true
+    enable_open_metrics: true
+  # Traces -> Tempo via OTLP HTTP (Tempo 2.0+ supports OTLP)
+  otlphttp/tempo:
+    endpoint: ${env:TEMPO_ENDPOINT:-http://tempo:4318}
+    tls:
+      insecure: true
+  # Logs -> Loki via OTLP HTTP (Loki 3.0+ supports OTLP natively)
+  otlphttp/loki:
+    endpoint: ${env:LOKI_ENDPOINT:-http://loki:3100/otlp}
+    tls:
+      insecure: true
+  debug:
+    verbosity: basic
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource/workama, batch]
+      exporters: [otlphttp/tempo, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource/workama, batch]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource/workama, batch]
+      exporters: [otlphttp/loki]

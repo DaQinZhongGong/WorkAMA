@@ -1,0 +1,29 @@
+# WorkAMA 项目 Cursor 入口
+# 完整规范见 AGENTS.md（项目根）
+
+## 快速规则
+
+1. **先读 [AGENTS.md](../AGENTS.md)** 再做任何事
+2. **单 Agent 模式**：token 受限时禁止开子 Agent
+3. **文档驱动**：实现先看 `WorkAMA-Docs/<编号>-<名称>.md`
+4. **Harness 实践**：本地能证明的才声明，本地不能证明的标 `pending_external`
+5. **端口约束**：workama-* 容器端口 ∈ [20200, 20299]，前缀 `workama`
+6. **完成前验证**：tsc / vitest / axe / smoke 中相关项必跑并附证据
+
+## 入口文档
+
+- `AGENTS.md`（根目录）：完整 AI 助手行为约定（必读）
+- `WorkAMA-Docs/000`：设计文档入口
+- `WorkAMA-Docs/910`：每轮进度活文档
+- `WorkAMA-Docs/815`：端口约束
+- `docs/harness-practice-insights.md`：Harness 边界实践
+- `docs/agents-setup-guide.md`：Skills / Plugins / MCP 安装指南
+
+## 验证命令
+
+```bash
+python tools/port-policy-check.py --compose-dir deploy/compose
+python tools/docs_consistency.py --json quality/evidence/docs-consistency.json
+docker exec workama-web-1 sh -c "cd /app/apps/web && node node_modules/typescript/bin/tsc --noEmit"
+docker exec workama-web-1 sh -c "cd /app/apps/web && BROWSER_EXECUTABLE=/usr/bin/chromium node node_modules/vitest/vitest.mjs run"
+```

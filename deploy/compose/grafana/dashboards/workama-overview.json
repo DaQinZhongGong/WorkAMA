@@ -1,0 +1,23 @@
+{
+  "uid": "workama-overview",
+  "title": "WorkAMA Platform Overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "templating": { "list": [] },
+  "panels": [
+    { "id": 1, "type": "timeseries", "title": "1. Platform request rate", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }, "targets": [{ "expr": "sum(rate(wama_platform_api_http_requests_total[5m]))", "legendFormat": "requests/s" }] },
+    { "id": 2, "type": "timeseries", "title": "2. Platform p95 latency", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }, "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(wama_platform_api_http_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p95" }] },
+    { "id": 3, "type": "timeseries", "title": "3. Gateway traffic", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }, "targets": [{ "expr": "sum(rate(wama_gateway_http_requests_total[5m]))", "legendFormat": "gateway requests/s" }] },
+    { "id": 4, "type": "timeseries", "title": "4. Agent and sandbox activity", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }, "targets": [{ "expr": "sum(rate(wama_agent_server_http_requests_total[5m])) or vector(0)", "legendFormat": "agent requests/s" }, { "expr": "sum(rate(wama_sandbox_fleet_http_requests_total[5m])) or vector(0)", "legendFormat": "sandbox requests/s" }] },
+    { "id": 5, "type": "timeseries", "title": "5. Worker throughput", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }, "targets": [{ "expr": "sum(rate(wama_platform_worker_batch_total[5m])) or vector(0)", "legendFormat": "platform batches/s" }, { "expr": "sum(rate(wama_rag_worker_batch_total[5m])) or vector(0)", "legendFormat": "rag batches/s" }] },
+    { "id": 6, "type": "stat", "title": "6. Error budget and telemetry", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 }, "targets": [{ "expr": "workama:sli:gateway:burn_rate_5m", "legendFormat": "gateway burn (5m)" }, { "expr": "workama:sli:gateway:burn_rate_1h", "legendFormat": "gateway burn (1h)" }, { "expr": "up{job=\"workama-otel\"}", "legendFormat": "otel" }], "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "colorMode": "value", "graphMode": "area" } },
+    { "id": 7, "type": "timeseries", "title": "7. Database connections", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 }, "targets": [{ "expr": "wama_platform_api_db_connections_active or vector(0)", "legendFormat": "active" }, { "expr": "wama_platform_api_db_connections_idle or vector(0)", "legendFormat": "idle" }] },
+    { "id": 8, "type": "timeseries", "title": "8. Redis operations", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 }, "targets": [{ "expr": "sum(rate(wama_platform_api_redis_commands_total[5m])) or vector(0)", "legendFormat": "commands/s" }] },
+    { "id": 9, "type": "timeseries", "title": "9. NATS JetStream", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 }, "targets": [{ "expr": "sum(rate(wama_platform_api_nats_messages_total[5m])) or vector(0)", "legendFormat": "messages/s" }] },
+    { "id": 10, "type": "timeseries", "title": "10. Error rate by service", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 }, "targets": [{ "expr": "sum(rate(wama_platform_api_http_requests_total{status_class=~\"5xx\"}[5m])) or vector(0)", "legendFormat": "platform-api 5xx/s" }, { "expr": "sum(rate(wama_gateway_http_requests_total{status_class=~\"5xx\"}[5m])) or vector(0)", "legendFormat": "gateway 5xx/s" }] },
+    { "id": 11, "type": "stat", "title": "11. Session activity", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 }, "targets": [{ "expr": "wama_platform_api_active_sessions or vector(0)", "legendFormat": "active sessions" }], "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "colorMode": "value", "graphMode": "area" } },
+    { "id": 12, "type": "timeseries", "title": "12. Credits consumption", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 }, "targets": [{ "expr": "sum(rate(wama_platform_api_credits_consumed_total[5m])) or vector(0)", "legendFormat": "credits/s" }] }
+  ]
+}

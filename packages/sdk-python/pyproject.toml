@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "workama-sdk"
+version = "0.1.0"
+description = "WorkAMA 平台官方 Python SDK（基于标准库 urllib，仅类型层依赖 pydantic）"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "WorkAMA Team" }]
+keywords = ["workama", "sdk", "agent", "memory", "workflow"]
+dependencies = [
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

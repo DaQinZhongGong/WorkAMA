@@ -1,0 +1,35 @@
+:root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #182323; background: #f5f7f4; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; }
+.share-shell { min-height: 100vh; display: flex; flex-direction: column; }
+.share-header, .share-main, footer { width: min(1120px, calc(100% - 48px)); margin: 0 auto; }
+.share-header { height: 76px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #dce5e0; }
+.share-brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 760; letter-spacing: .01em; }
+.mark { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: #fff; background: #147a75; }
+.secure-label, .artifact-meta span { display: inline-flex; align-items: center; gap: 7px; color: #60706e; font-size: 13px; }
+.share-main { flex: 1; padding: 104px 0 88px; }
+.eyebrow, .artifact-label { color: #147a75; font-size: 12px; font-weight: 750; letter-spacing: .12em; }
+h1 { max-width: 760px; margin: 16px 0 20px; font-size: clamp(42px, 7vw, 76px); line-height: .98; letter-spacing: -.035em; }
+.share-lead, .artifact-lead { max-width: 650px; color: #60706e; font-size: 19px; line-height: 1.6; }
+.share-actions { display: flex; align-items: center; gap: 24px; margin-top: 34px; }
+.primary-button, .copy-button { display: inline-flex; align-items: center; gap: 9px; border: 0; border-radius: 8px; background: #147a75; color: white; padding: 13px 17px; font-weight: 700; cursor: pointer; }
+.text-link { display: inline-flex; align-items: center; gap: 7px; color: #147a75; font-weight: 700; }
+.share-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 96px; background: #dce5e0; border: 1px solid #dce5e0; }
+.share-grid > div { min-height: 190px; padding: 28px; background: #fff; }
+.grid-icon { width: 34px; height: 34px; display: grid; place-items: center; margin-bottom: 28px; color: #147a75; background: #e4f1ef; border-radius: 8px; }
+.share-grid strong { display: block; font-size: 16px; }
+.share-grid p { margin: 10px 0 0; color: #60706e; line-height: 1.55; }
+.artifact { max-width: 780px; margin: 0 auto; }
+.artifact h1 { font-size: clamp(38px, 6vw, 64px); }
+.artifact-meta { display: flex; flex-wrap: wrap; gap: 18px; padding: 18px 0; border-top: 1px solid #dce5e0; border-bottom: 1px solid #dce5e0; }
+.artifact-body { margin-top: 48px; padding: 32px; background: #fff; border: 1px solid #dce5e0; border-radius: 8px; }
+.artifact-body h2 { margin-top: 0; font-size: 24px; }
+.artifact-body p { color: #4f605d; line-height: 1.7; }
+.artifact-callout { display: flex; gap: 12px; margin-top: 28px; padding: 16px; color: #147a75; background: #eaf5f2; border: 1px solid #cce5df; border-radius: 8px; }
+.artifact-callout div { display: grid; gap: 4px; }
+.artifact-callout span { color: #4f605d; font-size: 14px; line-height: 1.5; }
+.copy-button { margin-top: 24px; }
+footer { display: flex; justify-content: space-between; padding: 24px 0; color: #7a8985; font-size: 13px; border-top: 1px solid #dce5e0; }
+@media (max-width: 700px) { .share-header, .share-main, footer { width: min(100% - 32px, 560px); } .share-main { padding: 68px 0 56px; } h1 { font-size: 48px; } .share-actions { align-items: flex-start; flex-direction: column; gap: 18px; } .share-grid { grid-template-columns: 1fr; margin-top: 64px; } footer { gap: 12px; flex-direction: column; } }

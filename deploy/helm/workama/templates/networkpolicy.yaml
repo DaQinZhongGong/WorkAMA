@@ -1,0 +1,41 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $root := . -}}
+{{- range $name, $service := .Values.appServices }}
+{{- if $service.enabled | default true }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "workama.fullname" $root }}-{{ $name }}
+  labels:
+    {{- include "workama.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "workama.selectorLabels" $root | nindent 6 }}
+      app.kubernetes.io/component: {{ $name }}
+  policyTypes:
+    - Ingress
+    {{- if $root.Values.networkPolicy.egressAllowSameNamespace }}
+    - Egress
+    {{- end }}
+  ingress:
+    {{- if $root.Values.networkPolicy.ingressFromSameNamespace }}
+    - from:
+        - podSelector: {}
+    {{- end }}
+    {{- with $root.Values.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if $root.Values.networkPolicy.egressAllowSameNamespace }}
+  egress:
+    - to:
+        - podSelector: {}
+    {{- with $root.Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+---
+{{- end }}
+{{- end }}
+{{- end }}

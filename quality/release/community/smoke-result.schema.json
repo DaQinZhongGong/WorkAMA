@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://workama.dev/schemas/community-smoke-result.v1.json",
+  "title": "WorkAMA local community package smoke result",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "status",
+    "evidence_scope",
+    "package_type",
+    "compose_project_name",
+    "compose_config_checked",
+    "containers_started",
+    "destructive_actions",
+    "signed",
+    "signature_status",
+    "production_attestation"
+  ],
+  "properties": {
+    "schema_version": { "const": "workama.community.smoke.v1" },
+    "status": { "type": "string" },
+    "evidence_scope": { "const": "local-only" },
+    "package_type": { "const": "source" },
+    "package_directory": { "type": "string" },
+    "compose_project_name": { "const": "workama-community-smoke" },
+    "compose_config_checked": { "type": "boolean" },
+    "containers_started": { "const": false },
+    "destructive_actions": { "const": false },
+    "signed": { "const": false },
+    "signature_status": { "const": "not-signed" },
+    "production_attestation": { "const": false },
+    "note": { "type": "string" }
+  },
+  "additionalProperties": true
+}

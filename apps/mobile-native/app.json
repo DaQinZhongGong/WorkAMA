@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "WorkAMA",
+    "slug": "workama",
+    "scheme": "workama",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#4F46E5"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.workama.mobile"
+    },
+    "android": {
+      "package": "com.workama.mobile"
+    }
+  }
+}

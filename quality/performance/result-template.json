@@ -1,0 +1,21 @@
+{
+  "schema_version": "workama.performance.baseline.v1",
+  "status": "passed",
+  "run_id": "20260101T000000Z",
+  "runner": "docker",
+  "project": "workama",
+  "base_url": "http://localhost:8080",
+  "endpoint": "/healthz",
+  "vus": 1,
+  "duration": "30s",
+  "scenario": "k6-baseline.js",
+  "k6_image": "grafana/k6:0.52.0",
+  "started_at": "2026-01-01T00:00:00.0000000Z",
+  "finished_at": "2026-01-01T00:00:30.0000000Z",
+  "artifacts": [
+    "summary.json",
+    "raw.json",
+    "runner.log"
+  ],
+  "notes": "Replace this template with the result emitted by the baseline runner."
+}

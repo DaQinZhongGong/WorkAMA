@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "桌面端基础权限：核心、通知、全局快捷键、自动更新。本地 MCP 命令仍由 Rust 侧 feature 门控。",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "notification:default",
+    "notification:allow-notify",
+    "global-shortcut:default",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "updater:default",
+    "updater:allow-check",
+    "updater:allow-download"
+  ]
+}

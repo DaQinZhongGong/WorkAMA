@@ -1,0 +1,323 @@
+{
+  "schema_version": "1.0",
+  "release_version": "v7.166-p2",
+  "stage": "P2",
+  "commit": "d51c500",
+  "branch": "main",
+  "environment": "local-docker-compose",
+  "platform_api_base": "http://localhost:20200",
+  "gateway_base": "http://localhost:20202",
+  "openapi_path_count": 657,
+  "executed_at": "2026-07-31T00:00:00+08:00",
+  "executor": "qa-subagent-p2",
+  "approver": "pending",
+  "summary": {
+    "total_p2_items": 27,
+    "automation_pass": 27,
+    "automation_partial": 0,
+    "automation_fail": 0,
+    "manual_pending_external": 16,
+    "pure_auto_complete": 11,
+    "p2_tests_result": "649 passed in 27.65s (container workama-platform-api-1)"
+  },
+  "items": [
+    {
+      "ac_id": "AC-GW-015",
+      "title": "/v1/responses 后台 operation",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "gateway_route": "POST /v1/responses (405 on GET, 401 on POST without gw key -> route exists)",
+        "source_tests": "apps/gateway/internal/server/responses_test.go, responses_background_test.go",
+        "manual_pending": "SDK 兼容 + 保留策略报告（真实外部 provider staging）"
+      }
+    },
+    {
+      "ac_id": "AC-GW-016",
+      "title": "/v1/images、/v1/audio",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "gateway_routes": "POST /v1/images/generations, /v1/images/edits, /v1/audio/speech, /v1/audio/transcriptions (all 405 on GET -> exist)",
+        "source_tests": "apps/gateway/internal/server/media_test.go",
+        "manual_pending": "多模态报告（真实图像/音频模型 + C2PA 媒体嵌入）"
+      }
+    },
+    {
+      "ac_id": "AC-GW-017",
+      "title": "语义缓存/Prompt版本",
+      "execution": "自动",
+      "result": "pass",
+      "evidence": {
+        "platform_routes": "/api/v1/gateway/prompts 16 routes; GET /api/v1/gateway/prompts -> 200",
+        "source_tests": "test_gateway_prompts_full.py, test_gateway_prompts.py",
+        "semantic_cache": "pgvector 可选表，默认关闭，workspace allowlist"
+      }
+    },
+    {
+      "ac_id": "AC-GW-018",
+      "title": "订阅账号池 gw_sub_account",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "platform_routes": "/api/v1/channel-extensions/pools 5 routes; GET -> 200",
+        "source_tests": "test_subscription_pool.py (37 tests), test_channel_extensions.py, test_channel_extensions_usage.py",
+        "migration": "067_subscription_pool_enhance.sql",
+        "manual_pending": "安全/调度报告（真实 OAuth 账号池 staging）"
+      }
+    },
+    {
+      "ac_id": "AC-BILL-009",
+      "title": "多资源计量 usage detail",
+      "execution": "自动",
+      "result": "pass",
+      "evidence": {
+        "platform_routes": "/api/v1/billing/usage-exports; /internal/billing/meter-events",
+        "source_tests": "test_billing.py, test_billing_metering.py, test_metering.py",
+        "note": "模型/沙箱/存储/外部应用用量聚合计量已落地"
+      }
+    },
+    {
+      "ac_id": "AC-AG-014",
+      "title": "子会话 ag_session/ag_event",
+      "execution": "自动",
+      "result": "pass",
+      "evidence": {
+        "platform_routes": "/api/v1/agent/planner/sessions; /api/v1/agent/skills -> 200",
+        "source_tests": "test_agent_planner_v2.py, test_agent_planner.py",
+        "note": "Planner 依赖/循环检测/预算/收敛/去重/子会话 Coordinator"
+      }
+    },
+    {
+      "ac_id": "AC-AG-015",
+      "title": "AMA-Design provenance",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "platform_routes": "/api/v1/design/image-jobs 4 routes; /design/projects 16 routes; provenance 5 routes; GET /design/image-jobs -> 200, GET /design/projects -> 200 (109 projects)",
+        "source_tests": "test_design_provenance.py, test_design_canvas.py, test_design.py",
+        "manual_pending": "视觉评测 + 来源证明报告（C2PA 生产签名）"
+      }
+    },
+    {
+      "ac_id": "AC-AG-016",
+      "title": "Skill 安装 ag_skill/ag_skill_install",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "platform_routes": "/api/v1/skills/market 8 routes; /api/v1/skills/market/installed -> 200; /api/v1/skills/marketplace -> 200",
+        "source_tests": "test_skill_market.py, test_skills_marketplace.py, test_skill_signature.py, test_agent_skill_invoke.py",
+        "manual_pending": "供应链安全报告（真实签名 Skill）"
+      }
+    },
+    {
+      "ac_id": "AC-AG-017",
+      "title": "自动化 ag_schedule",
+      "execution": "自动",
+      "result": "pass",
+      "evidence": {
+        "platform_routes": "/api/v1/automations/v2/triggers 10 routes; GET -> 200",
+        "source_tests": "test_automation_v2.py, test_automation_worker.py",
+        "note": "Cron/Webhook 调度、时区、幂等 occurrence、outbox"
+      }
+    },
+    {
+      "ac_id": "AC-RAG-008",
+      "title": "版本化金标集 pf_eval_*",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "platform_routes": "/api/v1/knowledge/golden-sets 5 routes; /api/v1/knowledge/eval-runs 11 routes; GET -> 200",
+        "source_tests": "test_rag_golden.py, test_knowledge_eval.py, test_rag_evaluation_v2.py, test_rag_llm_judge.py",
+        "manual_pending": "Eval 运行报告（人工评分批准人）"
+      }
+    },
+    {
+      "ac_id": "AC-RAG-009",
+      "title": "embedding generation 蓝绿索引",
+      "execution": "自动",
+      "result": "pass",
+      "evidence": {
+        "platform_routes": "/api/v1/knowledge bases 索引重建",
+        "source_tests": "test_knowledge_base.py, test_rag_eval.py",
+        "note": "embedding/reranker/Prompt generation 原子切换"
+      }
+    },
+    {
+      "ac_id": "AC-RAG-010",
+      "title": "反馈/标注 pf_eval_case",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "platform_routes": "/api/v1/knowledge/eval-runs/{run_id}/annotations/import; /llm-judge",
+        "source_tests": "test_rag_evaluation_v2.py, test_knowledge_eval.py",
+        "manual_pending": "数据治理审计（脱敏人工审核回流）"
+      }
+    },
+    {
+      "ac_id": "AC-RAG-011",
+      "title": "大规模检索容量演练",
+      "execution": "自动",
+      "result": "pass",
+      "evidence": {
+        "platform_routes": "/api/v1/search 统一搜索; /api/v1/rag/query",
+        "source_tests": "test_unified_search.py, test_rag_worker.py",
+        "perf_baseline": "deploy/perf/out/baseline-summary.json p90 78ms, 0% failed, 70 RPS"
+      }
+    },
+    {
+      "ac_id": "AC-APP-006",
+      "title": "12 节点 DAG",
+      "execution": "自动",
+      "result": "pass",
+      "evidence": {
+        "platform_routes": "/api/v1/workflows; POST /api/v1/workflows -> 201",
+        "source_tests": "test_workflow_v2_versioning.py, test_workflow_executor.py, test_workflow_executor_safety.py, test_workflow_http_node.py, test_workflow_external_nodes.py",
+        "note": "条件/循环/分类/聚合/子流程/人工审批 12 节点 + 版本快照/回滚"
+      }
+    },
+    {
+      "ac_id": "AC-APP-007",
+      "title": "外部应用 pf_external_app",
+      "execution": "自动",
+      "result": "partial",
+      "evidence": {
+        "platform_routes": "/api/v1/connectors -> 200",
+        "source_tests": "test_external_apps.py, test_external_apps_live.py",
+        "manual_pending": "三方集成报告（真实 Dify/FastGPT/RagFlow provider）"
+      }
+    },
+    {
+      "ac_id": "AC-APP-008",
+      "title": "模板市场 pf_template",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "platform_routes": "/api/v1/marketplace/templates 8 routes; GET -> 200",
+        "source_tests": "test_open_platform.py, test_open_platform_docs.py",
+        "manual_pending": "市场审核报告（恶意内容人工审核）"
+      }
+    },
+    {
+      "ac_id": "AC-APP-009",
+      "title": "OAuth2 pf_oauth_client",
+      "execution": "自动",
+      "result": "pass",
+      "evidence": {
+        "platform_routes": "/api/v1/oauth/clients 3 routes; GET -> 200",
+        "source_tests": "test_open_platform.py, test_auth_oauth.py",
+        "note": "授权码+PKCE、token 轮换/吊销、scope 越权"
+      }
+    },
+    {
+      "ac_id": "AC-APP-010",
+      "title": "Webhook pf_webhook/ops_webhook_delivery",
+      "execution": "自动",
+      "result": "pass",
+      "evidence": {
+        "platform_routes": "/api/v1/webhooks 8 routes; GET -> 200",
+        "source_tests": "test_open_platform.py",
+        "note": "HMAC 签名、防重放、退避重试、410 自动禁用"
+      }
+    },
+    {
+      "ac_id": "AC-CLIENT-011",
+      "title": "Mobile M-01~12",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "apps": "apps/mobile (React PWA) + apps/mobile-native (Expo: Login/Chat/Agents/Profile screens + 5 tests)",
+        "source_tests": "apps/mobile/tests/pwa-enhanced.test.tsx, apps/mobile-native/__tests__/*",
+        "manual_pending": "真机矩阵（iOS15+/Android10+ 原生构建、推送深链）"
+      }
+    },
+    {
+      "ac_id": "AC-CLIENT-012",
+      "title": "MP-01~07 微信小程序",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "platform_routes": "/api/v1/wechat/miniapp/login (405 GET, 422 POST 校验 -> route exists), /bootstrap, /sessions, /subscribe, /notify",
+        "source_tests": "test_wechat_miniapp.py",
+        "apps": "apps/miniapp",
+        "manual_pending": "小程序审核包 + 录像（微信真机审核）"
+      }
+    },
+    {
+      "ac_id": "AC-CLIENT-013",
+      "title": "Mobile/小程序离线",
+      "execution": "自动",
+      "result": "pass",
+      "evidence": {
+        "apps": "apps/mobile public/sw.js (Service Worker), src/db.ts (IndexedDB 离线缓存最近 10 条)",
+        "source_tests": "apps/mobile/tests/pwa-enhanced.test.tsx (离线/在线、Web Push)",
+        "note": "append-only 事件合并"
+      }
+    },
+    {
+      "ac_id": "AC-CLIENT-014",
+      "title": "77 页面/多端状态",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "web": "apps/web React 19 + axe-core WCAG 2.2 AA 0 残留 (13 routes)",
+        "source_tests": "apps/web/tests/browser-smoke.mjs, e2e-journey-extended.mjs (10 旅程)",
+        "manual_pending": "视觉回归 + 真机证据（低端设备最长文案/缩放）"
+      }
+    },
+    {
+      "ac_id": "AC-SEC-008",
+      "title": "Skill/模板/MCP 供应链",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "source_tests": "test_skill_signature.py, test_mcp_enhancements.py, test_mcp_protocol.py",
+        "note": "未签名/篡改/超权限包拒绝执行 + 版本回滚",
+        "manual_pending": "供应链演练报告（真实撤回到上一可信版本）"
+      }
+    },
+    {
+      "ac_id": "AC-REL-004",
+      "title": "export/import manifest",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "platform_routes": "POST /api/v1/workspaces/{id}/exports (405 GET -> POST-only); /workspace-exports/{id}/content; /workspace-imports/uploads + dry-runs",
+        "source_tests": "test_portability.py",
+        "manual_pending": "搬迁验收报告（checksum/版本/权限跨实例校验）"
+      }
+    },
+    {
+      "ac_id": "AC-DESIGN-007",
+      "title": "M-01~12/MP-01~07 真机",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "source_tests": "apps/mobile-native/__tests__/*, apps/mobile/tests/pwa-enhanced.test.tsx",
+        "manual_pending": "真机录像 + 截图（低端 Android/iPhone/微信字体放大/弱网）"
+      }
+    },
+    {
+      "ac_id": "AC-PRIV-006",
+      "title": "模型目录/区域策略",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "platform_routes": "/api/v1/enterprise/compliance/region-policy -> 200; /api/v1/privacy/processing-activities -> 200; /privacy/consents; /privacy/deletion-tombstones",
+        "source_tests": "test_privacy_governance.py, test_compliance.py",
+        "manual_pending": "数据流/区域策略报告（home region 境外模型阻断人工验证）"
+      }
+    },
+    {
+      "ac_id": "AC-OPS-007",
+      "title": "多通道通知/自动化",
+      "execution": "自动+人工",
+      "result": "partial",
+      "evidence": {
+        "platform_routes": "/api/v1/notifications -> 200; /api/v1/automations/v2/triggers -> 200",
+        "source_tests": "test_notification.py, test_push_notification.py, test_notification_center.py, test_notification_delivery.py, test_automation_worker.py",
+        "manual_pending": "调度/推送矩阵（时区 DST、missed run、A3/A4 不自动批准人工确认）"
+      }
+    }
+  ]
+}

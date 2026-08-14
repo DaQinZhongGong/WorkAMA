@@ -1,0 +1,24 @@
+﻿{{- $root := . -}}
+{{- range $name, $service := .Values.appServices }}
+{{- if and ($service.enabled | default true) $service.pdb $service.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "workama.fullname" $root }}-{{ $name }}
+  labels:
+    {{- include "workama.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  {{- if $service.pdb.minAvailable }}
+  minAvailable: {{ $service.pdb.minAvailable }}
+  {{- end }}
+  {{- if $service.pdb.maxUnavailable }}
+  maxUnavailable: {{ $service.pdb.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $root.Release.Name }}
+      app.kubernetes.io/component: {{ $name }}
+---
+{{- end }}
+{{- end }}

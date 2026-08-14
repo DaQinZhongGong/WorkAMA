@@ -1,0 +1,558 @@
+﻿# WorkAMA production alerting rules
+# Loaded by Prometheus via rule_files. Metrics exported by OTel collector.
+# Metric names: wama_<service>_<object>_<action>_<unit> (see 800 §2.2)
+# Severity: critical=SEV1(15min), warning=SEV2/SEV3(1h/1bd)
+
+groups:
+  - name: workama.availability
+    interval: 30s
+    rules:
+      - alert: WorkamaPlatformApiDown
+        expr: up{job="workama-otel"} == 0 or absent(wama_platform_api_http_requests_total)
+        for: 2m
+        labels:
+          severity: critical
+          service: platform-api
+          category: availability
+        annotations:
+          summary: "platform-api is down or not emitting telemetry"
+          description: "platform-api has been unreachable or telemetry absent for 2 minutes."
+
+      - alert: WorkamaGatewayDown
+        expr: up{job="workama-otel"} == 0 or absent(wama_gateway_http_requests_total)
+        for: 2m
+        labels:
+          severity: critical
+          service: gateway
+          category: availability
+        annotations:
+          summary: "gateway is down or not emitting telemetry"
+          description: "gateway has been unreachable or telemetry absent for 2 minutes. All LLM traffic affected."
+
+      - alert: WorkamaAgentServerDown
+        expr: absent(wama_agent_server_http_requests_total)
+        for: 5m
+        labels:
+          severity: warning
+          service: agent-server
+          category: availability
+        annotations:
+          summary: "agent-server telemetry is missing"
+          description: "agent-server has not emitted HTTP metrics for 5 minutes."
+
+      - alert: WorkamaSandboxFleetDown
+        expr: absent(wama_sandbox_fleet_healthz_total)
+        for: 5m
+        labels:
+          severity: warning
+          service: sandbox-fleet
+          category: availability
+        annotations:
+          summary: "sandbox-fleet telemetry is missing"
+          description: "sandbox-fleet has not emitted health metrics for 5 minutes."
+
+  - name: workama.latency
+    interval: 30s
+    rules:
+      - alert: WorkamaGatewayP99LatencyHigh
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(wama_gateway_request_duration_seconds_bucket[5m])) by (le)
+          ) > 5
+        for: 10m
+        labels:
+          severity: critical
+          service: gateway
+          category: latency
+        annotations:
+          summary: "gateway P99 latency exceeds 5s"
+          description: "Gateway P99 request latency above 5s for 10m. Upstream LLM providers or pipeline may be degraded."
+
+      - alert: WorkamaGatewayP95LatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(wama_gateway_request_duration_seconds_bucket[5m])) by (le)
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: gateway
+          category: latency
+        annotations:
+          summary: "gateway P95 latency exceeds 2s"
+          description: "Gateway P95 request latency above 2s for 10m. Investigate slow middleware or cache misses."
+
+      - alert: WorkamaPlatformApiP99LatencyHigh
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(wama_platform_api_request_duration_seconds_bucket[5m])) by (le)
+          ) > 5
+        for: 10m
+        labels:
+          severity: critical
+          service: platform-api
+          category: latency
+        annotations:
+          summary: "platform-api P99 latency exceeds 5s"
+          description: "platform-api P99 latency above 5s for 10m. Check DB queries, pool saturation, or locks."
+
+      - alert: WorkamaPlatformApiP95LatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(wama_platform_api_request_duration_seconds_bucket[5m])) by (le)
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: platform-api
+          category: latency
+        annotations:
+          summary: "platform-api P95 latency exceeds 2s"
+          description: "platform-api P95 latency above 2s for 10m. Investigate slow endpoints or N+1 queries."
+
+  - name: workama.error_rate
+    interval: 30s
+    rules:
+      - alert: WorkamaGateway5xxErrorRateHigh
+        expr: |
+          (
+            sum(rate(wama_gateway_http_requests_total{status_class=~"5xx|unknown"}[5m]))
+            /
+            clamp_min(sum(rate(wama_gateway_http_requests_total[5m])), 0.000001)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: gateway
+          category: error_rate
+        annotations:
+          summary: "gateway 5xx error rate exceeds 5%"
+          description: "Gateway 5xx error rate above 5% for 5m. Check upstream provider errors, OOM, or pipeline failures."
+
+      - alert: WorkamaGateway4xxErrorRateHigh
+        expr: |
+          (
+            sum(rate(wama_gateway_http_requests_total{status_class="4xx"}[5m]))
+            /
+            clamp_min(sum(rate(wama_gateway_http_requests_total[5m])), 0.000001)
+          ) > 0.20
+        for: 10m
+        labels:
+          severity: warning
+          service: gateway
+          category: error_rate
+        annotations:
+          summary: "gateway 4xx error rate exceeds 20%"
+          description: "Gateway 4xx error rate above 20% for 10m. Check auth failures, malformed requests, or rate limiting."
+
+      - alert: WorkamaPlatformApi5xxErrorRateHigh
+        expr: |
+          (
+            sum(rate(wama_platform_api_http_requests_total{status_class=~"5xx|unknown"}[5m]))
+            /
+            clamp_min(sum(rate(wama_platform_api_http_requests_total[5m])), 0.000001)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: platform-api
+          category: error_rate
+        annotations:
+          summary: "platform-api 5xx error rate exceeds 5%"
+          description: "platform-api 5xx error rate above 5% for 5m. Check unhandled exceptions, DB errors, or dependency failures."
+
+      - alert: WorkamaPlatformApi4xxErrorRateHigh
+        expr: |
+          (
+            sum(rate(wama_platform_api_http_requests_total{status_class="4xx"}[5m]))
+            /
+            clamp_min(sum(rate(wama_platform_api_http_requests_total[5m])), 0.000001)
+          ) > 0.20
+        for: 10m
+        labels:
+          severity: warning
+          service: platform-api
+          category: error_rate
+        annotations:
+          summary: "platform-api 4xx error rate exceeds 20%"
+          description: "platform-api 4xx error rate above 20% for 10m. Check auth, validation, or permission issues."
+
+  - name: workama.resources
+    interval: 30s
+    rules:
+      - alert: WorkamaCpuUsageHigh
+        expr: |
+          (
+            sum(rate(container_cpu_usage_seconds_total{namespace="workama-staging",container!=""}[5m])) by (pod)
+            /
+            sum(kube_pod_container_resource_limits{namespace="workama-staging",resource="cpu"}) by (pod)
+          ) > 0.80
+        for: 15m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "CPU usage exceeds 80%"
+          description: "Pod CPU usage above 80% of limit for 15m. Consider scaling out or increasing CPU limits."
+
+      - alert: WorkamaMemoryUsageHigh
+        expr: |
+          (
+            sum(container_memory_working_set_bytes{namespace="workama-staging",container!=""}) by (pod)
+            /
+            sum(kube_pod_container_resource_limits{namespace="workama-staging",resource="memory"}) by (pod)
+          ) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "Memory usage exceeds 85%"
+          description: "Pod memory usage above 85% of limit for 10m. Investigate memory leaks or increase memory limits."
+
+      - alert: WorkamaDiskUsageHigh
+        expr: |
+          (
+            1 - (
+              node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}
+              /
+              node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}
+            )
+          ) > 0.90
+        for: 10m
+        labels:
+          severity: critical
+          category: resources
+        annotations:
+          summary: "Disk usage exceeds 90%"
+          description: "Node disk usage above 90% for 10m. Risk of disk pressure evictions and PG/MinIO write failures."
+
+      - alert: WorkamaPodRestarting
+        expr: increase(kube_pod_container_status_restarts_total{namespace="workama-staging"}[1h]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "Pod is restarting repeatedly"
+          description: "Pod restarted more than 5 times in the last hour. Check crash loops, OOM kills, or liveness probe failures."
+
+  - name: workama.llm_gateway
+    interval: 30s
+    rules:
+      - alert: WorkamaLlmCallFailureRateHigh
+        expr: |
+          (
+            sum(rate(wama_gateway_upstream_calls_total{result=~"failed|error|timeout"}[5m]))
+            /
+            clamp_min(sum(rate(wama_gateway_upstream_calls_total[5m])), 0.000001)
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+          service: gateway
+          category: llm_gateway
+        annotations:
+          summary: "LLM call failure rate exceeds 10%"
+          description: "LLM upstream call failure rate above 10% for 5m. Check provider outages, rate limits, or API key issues."
+
+      - alert: WorkamaLlmP99LatencyHigh
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(wama_gateway_upstream_duration_seconds_bucket[5m])) by (le)
+          ) > 30
+        for: 10m
+        labels:
+          severity: warning
+          service: gateway
+          category: llm_gateway
+        annotations:
+          summary: "LLM P99 latency exceeds 30s"
+          description: "LLM upstream P99 latency above 30s for 10m. Check slow providers, model load times, or network degradation."
+
+      - alert: WorkamaGatewayCircuitBreakerOpen
+        expr: wama_gateway_channel_circuit_state{state="open"} == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: gateway
+          category: llm_gateway
+        annotations:
+          summary: "Gateway circuit breaker is open"
+          description: "A gateway channel circuit breaker has been open for 5m. The channel is failing fast; check provider status."
+
+      - alert: WorkamaGatewaySseConnectionsHigh
+        expr: sum(wama_gateway_active_sse_streams) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: gateway
+          category: llm_gateway
+        annotations:
+          summary: "Gateway active SSE connections exceed 1000"
+          description: "Active SSE stream count above 1000 for 5m. May indicate connection leaks or insufficient scaling."
+
+  - name: workama.database
+    interval: 30s
+    rules:
+      - alert: WorkamaPostgresConnectionPoolHigh
+        expr: |
+          (
+            wama_platform_api_db_pool_in_use
+            /
+            clamp_min(wama_platform_api_db_pool_size, 1)
+          ) > 0.80
+        for: 10m
+        labels:
+          severity: warning
+          service: platform-api
+          category: database
+        annotations:
+          summary: "PostgreSQL connection pool usage exceeds 80%"
+          description: "DB connection pool usage above 80% for 10m. Investigate long-running transactions or increase pool size."
+
+      - alert: WorkamaPostgresSlowQueries
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(wama_platform_api_db_query_duration_seconds_bucket[5m])) by (le)
+          ) > 1
+        for: 10m
+        labels:
+          severity: warning
+          service: platform-api
+          category: database
+        annotations:
+          summary: "PostgreSQL slow queries P99 exceeds 1s"
+          description: "P99 query latency above 1s for 10m. Check missing indexes, lock contention, or vacuum bloat."
+
+      - alert: WorkamaPostgresConnectionsExhausted
+        expr: wama_platform_api_db_pool_in_use >= wama_platform_api_db_pool_size
+        for: 2m
+        labels:
+          severity: critical
+          service: platform-api
+          category: database
+        annotations:
+          summary: "PostgreSQL connection pool exhausted"
+          description: "All DB pool connections are in use. New requests will block or fail. Increase pool size or reduce concurrent queries."
+
+      - alert: WorkamaPostgresDiskFull
+        expr: |
+          (
+            pg_database_size_bytes{datname="workama"}
+            /
+            node_filesystem_size_bytes{mountpoint="/var/lib/postgresql/data",fstype!~"tmpfs"}
+          ) > 0.90
+        for: 10m
+        labels:
+          severity: critical
+          service: postgres
+          category: database
+        annotations:
+          summary: "PostgreSQL database using >90% of disk"
+          description: "PG database size exceeds 90% of available disk. Risk of write failures and transaction aborts."
+
+  - name: workama.redis
+    interval: 30s
+    rules:
+      - alert: WorkamaRedisConnectionPoolHigh
+        expr: |
+          (
+            wama_platform_api_redis_pool_in_use
+            /
+            clamp_min(wama_platform_api_redis_pool_size, 1)
+          ) > 0.80
+        for: 10m
+        labels:
+          severity: warning
+          service: platform-api
+          category: redis
+        annotations:
+          summary: "Redis connection pool usage exceeds 80%"
+          description: "Redis pool usage above 80% for 10m. Check connection leaks or increase pool size."
+
+      - alert: WorkamaRedisMemoryHigh
+        expr: |
+          (
+            redis_memory_used_bytes
+            /
+            redis_memory_max_bytes
+          ) > 0.90
+        for: 10m
+        labels:
+          severity: critical
+          service: redis
+          category: redis
+        annotations:
+          summary: "Redis memory usage exceeds 90%"
+          description: "Redis memory above 90% of max for 10m. Risk of evictions and OOM. Increase maxmemory or scale out."
+
+      - alert: WorkamaRedisDown
+        expr: redis_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: redis
+          category: redis
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been unreachable for 2m. Caching, rate limiting, and session storage are impacted."
+
+      - alert: WorkamaRedisHitRateLow
+        expr: |
+          (
+            rate(redis_keyspace_hits_total[5m])
+            /
+            clamp_min(rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]), 0.000001)
+          ) < 0.80
+        for: 15m
+        labels:
+          severity: warning
+          service: redis
+          category: redis
+        annotations:
+          summary: "Redis hit rate below 80%"
+          description: "Redis cache hit rate below 80% for 15m. Check TTL settings, cache invalidation patterns, or capacity."
+
+  - name: workama.worker
+    interval: 30s
+    rules:
+      - alert: WorkamaQueueBacklogHigh
+        expr: wama_platform_worker_queue_depth > 1000
+        for: 10m
+        labels:
+          severity: warning
+          service: platform-worker
+          category: worker
+        annotations:
+          summary: "Worker queue backlog exceeds 1000"
+          description: "Queue depth above 1000 for 10m. Workers may be saturated; scale out or investigate slow job processing."
+
+      - alert: WorkamaWorkerHeartbeatLost
+        expr: |
+          time() - wama_platform_worker_last_heartbeat_timestamp_seconds > 120
+        for: 2m
+        labels:
+          severity: critical
+          service: platform-worker
+          category: worker
+        annotations:
+          summary: "Worker heartbeat lost"
+          description: "No worker heartbeat for over 2 minutes. Workers may be deadlocked, OOM-killed, or stuck on a blocking call."
+
+      - alert: WorkamaWorkerJobFailureRateHigh
+        expr: |
+          (
+            sum(rate(wama_platform_worker_job_total{result=~"failed|error"}[5m]))
+            /
+            clamp_min(sum(rate(wama_platform_worker_job_total[5m])), 0.000001)
+          ) > 0.10
+        for: 10m
+        labels:
+          severity: warning
+          service: platform-worker
+          category: worker
+        annotations:
+          summary: "Worker job failure rate exceeds 10%"
+          description: "Worker job failure rate above 10% for 10m. Check DLQ, retry exhaustion, or downstream dependency failures."
+
+      - alert: WorkamaWorkerDlqGrowing
+        expr: increase(wama_platform_worker_dlq_size[1h]) > 50
+        for: 5m
+        labels:
+          severity: warning
+          service: platform-worker
+          category: worker
+        annotations:
+          summary: "Dead letter queue is growing"
+          description: "More than 50 jobs entered DLQ in the last hour. Investigate poison messages or persistent failures."
+
+      - alert: WorkamaNatsConsumerLag
+        expr: wama_nats_consumer_pending > 5000
+        for: 10m
+        labels:
+          severity: warning
+          service: nats
+          category: worker
+        annotations:
+          summary: "NATS consumer lag exceeds 5000"
+          description: "NATS JetStream consumer pending messages above 5000 for 10m. Check consumer health or scale workers."
+
+  - name: workama.certificates
+    interval: 5m
+    rules:
+      - alert: WorkamaTlsCertExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 30
+        for: 1h
+        labels:
+          severity: warning
+          category: certificates
+        annotations:
+          summary: "TLS certificate expires within 30 days"
+          description: "A TLS certificate will expire within 30 days. Renew via cert-manager or your CA."
+
+      - alert: WorkamaTlsCertExpired
+        expr: probe_ssl_earliest_cert_expiry - time() < 0
+        for: 5m
+        labels:
+          severity: critical
+          category: certificates
+        annotations:
+          summary: "TLS certificate has expired"
+          description: "A TLS certificate has expired. HTTPS traffic at risk. Renew immediately."
+
+      - alert: WorkamaIngressTlsExpiringSoon
+        expr: kube_ingress_tls_certificate_expiration_timestamp_seconds - time() < 86400 * 30
+        for: 1h
+        labels:
+          severity: warning
+          category: certificates
+        annotations:
+          summary: "Ingress TLS certificate expires within 30 days"
+          description: "Kubernetes ingress TLS certificate will expire within 30 days. Check cert-manager renewal."
+
+  - name: workama.slo_burn
+    interval: 30s
+    rules:
+      - alert: WorkamaErrorBudgetFastBurn
+        expr: |
+          (
+            sum(rate(wama_gateway_http_requests_total{status_class=~"5xx|unknown"}[5m]))
+            /
+            clamp_min(sum(rate(wama_gateway_http_requests_total[5m])), 0.000001)
+          ) / (1 - 0.9995) >= 14.4
+        for: 5m
+        labels:
+          severity: critical
+          service: gateway
+          category: slo_burn
+        annotations:
+          summary: "Gateway error budget fast burn (14.4x in 5m)"
+          description: "Gateway is consuming error budget 14.4x faster than allowed. Rollback or mitigate within 15m."
+
+      - alert: WorkamaErrorBudgetSlowBurn
+        expr: |
+          (
+            sum(rate(wama_gateway_http_requests_total{status_class=~"5xx|unknown"}[1h]))
+            /
+            clamp_min(sum(rate(wama_gateway_http_requests_total[1h])), 0.000001)
+          ) / (1 - 0.9995) >= 3
+        for: 30m
+        labels:
+          severity: warning
+          service: gateway
+          category: slo_burn
+        annotations:
+          summary: "Gateway error budget slow burn (3x in 1h)"
+          description: "Gateway error budget burn rate above 3x for 30m. Investigate root cause before escalation."
+
+      - alert: WorkamaTelemetryGap
+        expr: absent(wama_platform_api_http_requests_total) or absent(wama_gateway_http_requests_total)
+        for: 5m
+        labels:
+          severity: warning
+          service: observability
+          category: slo_burn
+        annotations:
+          summary: "WorkAMA core telemetry is missing"
+          description: "Platform API or gateway telemetry has been absent for 5m. OTel collector or app instrumentation may be broken."

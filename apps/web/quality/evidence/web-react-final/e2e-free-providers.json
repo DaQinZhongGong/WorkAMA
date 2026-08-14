@@ -1,0 +1,48 @@
+{
+  "suite": "web-react-final-e2e-free-providers",
+  "started_at": "2026-07-27T11:18:45.840Z",
+  "finished_at": "2026-07-27T11:21:22.653Z",
+  "duration_ms": 156811,
+  "journeys": [
+    {
+      "name": "free-providers-list",
+      "status": "failed",
+      "duration_ms": 31067,
+      "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"free-providers-card\"]').first() to be visible\u001b[22m\n",
+      "screenshot": "quality/evidence/web-react-final/e2e-free-providers-free-providers-list.png"
+    },
+    {
+      "name": "free-providers-filter",
+      "status": "failed",
+      "duration_ms": 30948,
+      "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"free-providers-card\"]').first() to be visible\u001b[22m\n",
+      "screenshot": "quality/evidence/web-react-final/e2e-free-providers-free-providers-filter.png"
+    },
+    {
+      "name": "free-providers-enable",
+      "status": "failed",
+      "duration_ms": 32304,
+      "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"free-providers-card\"]').first() to be visible\u001b[22m\n",
+      "screenshot": "quality/evidence/web-react-final/e2e-free-providers-free-providers-enable.png"
+    },
+    {
+      "name": "free-providers-region-filter",
+      "status": "failed",
+      "duration_ms": 30999,
+      "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"free-providers-card\"]').first() to be visible\u001b[22m\n",
+      "screenshot": "quality/evidence/web-react-final/e2e-free-providers-free-providers-region-filter.png"
+    },
+    {
+      "name": "free-providers-mobile",
+      "status": "failed",
+      "duration_ms": 30917,
+      "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-testid=\"free-providers-card\"]').first() to be visible\u001b[22m\n",
+      "screenshot": "quality/evidence/web-react-final/e2e-free-providers-free-providers-mobile.png"
+    }
+  ],
+  "summary": {
+    "total": 5,
+    "passed": 0,
+    "failed": 5
+  }
+}

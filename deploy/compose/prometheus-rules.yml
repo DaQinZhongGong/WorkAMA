@@ -1,0 +1,91 @@
+groups:
+  - name: workama.sli.v1
+    interval: 30s
+    rules:
+      - record: workama:sli:gateway:valid_total
+        expr: sum(rate(wama_gateway_http_requests_total[5m])) or vector(0)
+      - record: workama:sli:gateway:bad_total
+        expr: sum(rate(wama_gateway_http_requests_total{status_class=~"5xx|unknown"}[5m])) or vector(0)
+      - record: workama:sli:gateway:good_total
+        expr: clamp_min(workama:sli:gateway:valid_total - workama:sli:gateway:bad_total, 0)
+      - record: workama:sli:gateway:burn_rate
+        expr: workama:sli:gateway:bad_total / clamp_min(workama:sli:gateway:valid_total, 0.000001) / (1 - 0.9995)
+      - record: workama:sli:platform_api:valid_total
+        expr: sum(rate(wama_platform_api_http_requests_total[5m])) or vector(0)
+      - record: workama:sli:platform_api:bad_total
+        expr: sum(rate(wama_platform_api_http_requests_total{status_class=~"5xx|unknown"}[5m])) or vector(0)
+      - record: workama:sli:platform_api:good_total
+        expr: clamp_min(workama:sli:platform_api:valid_total - workama:sli:platform_api:bad_total, 0)
+      - record: workama:sli:platform_api:burn_rate
+        expr: workama:sli:platform_api:bad_total / clamp_min(workama:sli:platform_api:valid_total, 0.000001) / (1 - 0.9995)
+      - record: workama:sli:agent:valid_total
+        expr: sum(rate(wama_agent_server_http_requests_total[5m])) or vector(0)
+      - record: workama:sli:agent:bad_total
+        expr: sum(rate(wama_agent_server_http_requests_total{status_class=~"5xx|unknown"}[5m])) or vector(0)
+      - record: workama:sli:agent:good_total
+        expr: clamp_min(workama:sli:agent:valid_total - workama:sli:agent:bad_total, 0)
+      - record: workama:sli:agent:burn_rate
+        expr: workama:sli:agent:bad_total / clamp_min(workama:sli:agent:valid_total, 0.000001) / (1 - 0.995)
+      - record: workama:sli:operations:valid_total
+        expr: sum(rate(wama_platform_worker_job_total[5m])) or vector(0)
+      - record: workama:sli:operations:bad_total
+        expr: sum(rate(wama_platform_worker_job_total{result=~"failed|error"}[5m])) or vector(0)
+      - record: workama:sli:operations:good_total
+        expr: clamp_min(workama:sli:operations:valid_total - workama:sli:operations:bad_total, 0)
+      - record: workama:sli:operations:burn_rate
+        expr: workama:sli:operations:bad_total / clamp_min(workama:sli:operations:valid_total, 0.000001) / (1 - 0.999)
+      - record: workama:sli:gateway:valid_total_1h
+        expr: sum(rate(wama_gateway_http_requests_total[1h])) or vector(0)
+      - record: workama:sli:gateway:bad_total_1h
+        expr: sum(rate(wama_gateway_http_requests_total{status_class=~"5xx|unknown"}[1h])) or vector(0)
+      - record: workama:sli:gateway:burn_rate_5m
+        expr: (sum(rate(wama_gateway_http_requests_total{status_class=~"5xx|unknown"}[5m])) or vector(0)) / clamp_min((sum(rate(wama_gateway_http_requests_total[5m])) or vector(0)), 0.000001) / (1 - 0.9995)
+      - record: workama:sli:gateway:burn_rate_1h
+        expr: workama:sli:gateway:bad_total_1h / clamp_min(workama:sli:gateway:valid_total_1h, 0.000001) / (1 - 0.9995)
+      - record: workama:sli:notifications:valid_total
+        expr: sum(rate(wama_platform_worker_batch_total{operation="notification_delivery"}[5m])) or vector(0)
+      - record: workama:sli:notifications:bad_total
+        expr: sum(rate(wama_platform_worker_batch_total{operation="notification_delivery",result=~"failed|error"}[5m])) or vector(0)
+      - record: workama:sli:notifications:good_total
+        expr: clamp_min(workama:sli:notifications:valid_total - workama:sli:notifications:bad_total, 0)
+      - record: workama:sli:notifications:burn_rate
+        expr: workama:sli:notifications:bad_total / clamp_min(workama:sli:notifications:valid_total, 0.000001) / (1 - 0.99)
+      - record: workama:sli:search:valid_total
+        expr: sum(rate(wama_platform_api_http_requests_total{route="/api/v1/search"}[5m])) or vector(0)
+      - record: workama:sli:search:bad_total
+        expr: sum(rate(wama_platform_api_http_requests_total{route="/api/v1/search",status_class=~"5xx|unknown"}[5m])) or vector(0)
+      - record: workama:sli:search:good_total
+        expr: clamp_min(workama:sli:search:valid_total - workama:sli:search:bad_total, 0)
+      - record: workama:sli:search:burn_rate
+        expr: workama:sli:search:bad_total / clamp_min(workama:sli:search:valid_total, 0.000001) / (1 - 0.995)
+
+  - name: workama.alerts.v1
+    interval: 30s
+    rules:
+      - alert: WorkamaGatewayErrorBudgetFastBurn
+        expr: workama:sli:gateway:burn_rate_5m >= 14.4 and workama:sli:gateway:burn_rate_1h >= 14.4
+        for: 5m
+        labels:
+          severity: critical
+          service: gateway
+        annotations:
+          summary: WorkAMA Gateway is consuming the enterprise error budget rapidly
+          runbook: RB-OPS-001
+      - alert: WorkamaPlatformTelemetryGap
+        expr: absent(wama_platform_api_http_requests_total) or absent(wama_gateway_http_requests_total)
+        for: 5m
+        labels:
+          severity: warning
+          service: observability
+        annotations:
+          summary: WorkAMA core telemetry is missing
+          runbook: RB-OPS-003
+      - alert: WorkamaWorkerQueueFailure
+        expr: workama:sli:operations:burn_rate >= 6
+        for: 10m
+        labels:
+          severity: warning
+          service: platform-worker
+        annotations:
+          summary: WorkAMA platform worker operation failures are above the SLO burn threshold
+          runbook: RB-OPS-003

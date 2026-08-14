@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "dry_run": true,
+  "compatible_with_n_minus_one": true,
+  "migration_ids": [
+    "<migration-id>"
+  ],
+  "rollback_plan": "Code rollback uses rollback_version; irreversible changes use a documented forward-fix.",
+  "executed_at": "2026-01-01T00:00:00Z"
+}

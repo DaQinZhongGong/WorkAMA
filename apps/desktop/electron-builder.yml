@@ -1,0 +1,40 @@
+# electron-builder 打包配置（参见《320》§4.2 桌面端 / 《410》§5.3 安全模型）
+#
+# 本文件被 `electron-builder` CLI 自动读取（优先级高于 package.json 的 build 字段）。
+# 打包流程：
+#   1. `pnpm electron:build` — electron-vite 编译 main/preload/renderer → out/
+#   2. `pnpm build-renderer`（scripts/build-renderer.ps1）— 构建 apps/web React 应用 → dist/
+#   3. `pnpm dist` / `pnpm dist:win` / `pnpm dist:mac` / `pnpm dist:linux` — electron-builder 打包 → dist-electron/
+
+appId: com.workama.desktop
+productName: WorkAMA
+
+directories:
+  output: dist-electron
+
+files:
+  - dist/**/*
+  - electron/**/*
+  - package.json
+
+win:
+  target: nsis
+  icon: build/icon.png
+
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.productivity
+  icon: build/icon.png
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Office
+  icon: build/icon.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

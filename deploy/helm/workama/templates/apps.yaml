@@ -1,0 +1,120 @@
+{{- $root := . -}}
+{{- range $name, $service := .Values.appServices }}
+{{- if $service.enabled | default true }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "workama.fullname" $root }}-{{ $name }}
+  labels:
+    {{- include "workama.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  replicas: {{ $service.replicas | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "workama.selectorLabels" $root | nindent 6 }}
+      app.kubernetes.io/component: {{ $name }}
+  template:
+    metadata:
+      labels:
+        {{- include "workama.labels" $root | nindent 8 }}
+        app.kubernetes.io/component: {{ $name }}
+    spec:
+      serviceAccountName: {{ include "workama.serviceAccountName" $root }}
+      securityContext:
+        {{- toYaml $root.Values.podSecurityContext | nindent 8 }}
+      {{- with $root.Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with ($service.affinity | default $root.Values.affinity) }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with ($service.tolerations | default $root.Values.tolerations) }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with ($service.topologySpreadConstraints | default $root.Values.topologySpreadConstraints) }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          image: {{ include "workama.image" (dict "root" $root "service" $service) | quote }}
+          imagePullPolicy: {{ $root.Values.global.imagePullPolicy }}
+          securityContext:
+            {{- toYaml ($service.securityContext | default $root.Values.defaultSecurityContext) | nindent 12 }}
+          {{- with $service.command }}
+          command: {{ toJson . }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ $service.port }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "workama.fullname" $root }}-config
+            - secretRef:
+                name: {{ include "workama.fullname" $root }}-secrets
+          env:
+            - name: PORT
+              value: {{ $service.port | quote }}
+            - name: OTEL_ENABLED
+              value: "true"
+            {{- if eq $name "gateway" }}
+            - name: PLATFORM_API_URL
+              value: {{ printf "http://%s-platform-api:8000" (include "workama.fullname" $root) | quote }}
+            {{- end }}
+            {{- if eq $name "web" }}
+            - name: VITE_PLATFORM_API_URL
+              value: {{ default (printf "http://%s/api" $root.Values.global.domain) $root.Values.web.platformApiUrl | quote }}
+            - name: VITE_AGENT_WS_URL
+              value: {{ default (printf "ws://%s/ws" $root.Values.global.domain) $root.Values.web.agentWsUrl | quote }}
+            {{- end }}
+            {{- with $service.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml ($service.resources | default $root.Values.resources) | nindent 12 }}
+          {{- if and (eq $name "sandbox-fleet") $root.Values.sandboxFleet.dockerSocket.enabled }}
+          volumeMounts:
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+          {{- end }}
+          {{- with $service.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if $service.readinessProbe }}
+          readinessProbe:
+            {{- toYaml $service.readinessProbe | nindent 12 }}
+          {{- else if $service.healthPath }}
+          readinessProbe:
+            httpGet:
+              path: {{ $service.healthPath }}
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          {{- end }}
+          {{- if $service.livenessProbe }}
+          livenessProbe:
+            {{- toYaml $service.livenessProbe | nindent 12 }}
+          {{- else if $service.healthPath }}
+          livenessProbe:
+            httpGet:
+              path: {{ $service.healthPath }}
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          {{- end }}
+      {{- if and (eq $name "sandbox-fleet") $root.Values.sandboxFleet.dockerSocket.enabled }}
+      volumes:
+        - name: docker-socket
+          hostPath:
+            path: {{ $root.Values.sandboxFleet.dockerSocket.path | quote }}
+            type: Socket
+      {{- end }}
+---
+{{- end }}
+{{- end }}

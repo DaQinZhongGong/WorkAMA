@@ -1,0 +1,94 @@
+:root {
+  --workama-primary: #4f46e5;
+  --workama-bg: #ffffff;
+  --workama-text: #1f2937;
+  --workama-error: #dc2626;
+  --workama-border: #e5e7eb;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+}
+
+body {
+  margin: 0;
+  width: 360px;
+  background: var(--workama-bg);
+  color: var(--workama-text);
+}
+
+.popup {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.popup h1 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--workama-primary);
+}
+
+.popup form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.popup input[type="email"],
+.popup input[type="password"],
+.popup input[type="text"] {
+  padding: 8px 10px;
+  border: 1px solid var(--workama-border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.popup button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--workama-primary);
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.popup button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.popup .error {
+  color: var(--workama-error);
+  font-size: 13px;
+  margin: 0;
+}
+
+.popup .messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.popup .messages li {
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.popup .messages li.user {
+  background: var(--workama-primary);
+  color: #ffffff;
+  align-self: flex-end;
+}
+
+.popup .messages li.assistant {
+  background: var(--workama-border);
+  align-self: flex-start;
+}

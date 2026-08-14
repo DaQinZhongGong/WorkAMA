@@ -1,0 +1,14 @@
+{
+  "$schema": "./sbom-validation.schema.json",
+  "schema_version": "workama.community.sbom-validation.v1",
+  "status": "not-run",
+  "is_sbom": false,
+  "format": "CycloneDX JSON",
+  "tool": "syft",
+  "sbom_digest": "sha256:<64-lowercase-hex-chars>",
+  "local_only": true,
+  "signed": false,
+  "signature_status": "not-signed",
+  "production_attestation": false,
+  "notes": "A file inventory or local smoke result must not be labeled as an SBOM."
+}

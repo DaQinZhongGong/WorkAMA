@@ -1,0 +1,38 @@
+{
+  "$schema": "./release-manifest.schema.json",
+  "version": "1.0.0",
+  "commit": "<git-commit-sha>",
+  "build_id": "<immutable-build-id>",
+  "builder_identity": "<ci-builder-identity>",
+  "source_digest": "sha256:<64-hex-chars>",
+  "dependency_lock_digest": "sha256:<64-hex-chars>",
+  "artifact_name": "workama-release",
+  "artifact_digest": "sha256:<64-hex-chars>",
+  "sbom_digest": "sha256:<64-hex-chars>",
+  "provenance_digest": "sha256:<64-hex-chars>",
+  "signature": "<signature-reference>",
+  "created_at": "2026-01-01T00:00:00Z",
+  "min_server_version": "1.0.0",
+  "max_schema_version": "1.0.0",
+  "migration_ids": [
+    "<migration-id>"
+  ],
+  "feature_flags": [],
+  "rollback_version": "0.9.0",
+  "image": {
+    "reference": "registry.example/workama/platform-api:1.0.0",
+    "digest": "sha256:<64-hex-chars>",
+    "evidence_file": "image-inspect.json"
+  },
+  "migration": {
+    "dry_run": true,
+    "compatible_with_n_minus_one": true,
+    "strategy": "expand-contract-or-forward-fix",
+    "evidence_file": "migration-dry-run.json"
+  },
+  "rollback": {
+    "verified": true,
+    "strategy": "code-rollback-with-forward-fix-when-required",
+    "evidence_file": "rollback.json"
+  }
+}

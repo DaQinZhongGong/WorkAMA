@@ -1,0 +1,1 @@
+const fs=require("fs");const p=process.argv[2];let d="";process.stdin.setEncoding("utf8");process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{fs.writeFileSync(p,d,"utf8");});

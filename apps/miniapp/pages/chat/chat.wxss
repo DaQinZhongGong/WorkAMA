@@ -1,0 +1,44 @@
+.chat-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f8fafc;
+}
+
+.message-list {
+  flex: 1;
+  padding: 24rpx 32rpx;
+  overflow-y: auto;
+}
+
+.input-bar {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx;
+  background: #fff;
+  border-top: 1rpx solid #e2e8f0;
+}
+
+.chat-input {
+  flex: 1;
+  background: #f1f5f9;
+  border-radius: 12rpx;
+  height: 72rpx;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+}
+
+.send-btn {
+  margin-left: 16rpx;
+  padding: 0 28rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+  background: #cbd5e1;
+  color: #fff;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+}
+
+.send-btn.active {
+  background: #2563eb;
+}

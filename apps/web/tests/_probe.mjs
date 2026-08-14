@@ -1,0 +1,2 @@
+const url = process.argv[2] || 'http://localhost:3000';
+fetch(url).then(r => { console.log('status=' + r.status); process.exit(r.status < 500 ? 0 : 1); }).catch(e => { console.error('err=' + e.message); process.exit(2); });

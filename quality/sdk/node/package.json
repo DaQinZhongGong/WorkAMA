@@ -1,0 +1,8 @@
+{
+  "name": "workama-openai-node-sdk-smoke",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "openai": "6.46.0"
+  }
+}

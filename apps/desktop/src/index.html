@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    />
+    <title>WorkAMA</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="app__bar">
+        <span class="app__title">WorkAMA</span>
+        <span class="app__status" id="status">正在初始化…</span>
+        <div class="app__controls">
+          <button id="minimize" type="button" aria-label="最小化">—</button>
+          <button id="close" type="button" aria-label="关闭">×</button>
+        </div>
+      </header>
+      <section class="app__login">
+        <h1>登录 WorkAMA</h1>
+        <label class="field">
+          <span>邮箱</span>
+          <input id="email" type="email" placeholder="you@example.com" autocomplete="username" />
+        </label>
+        <label class="field">
+          <span>密码</span>
+          <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </label>
+        <div class="actions">
+          <button id="login" type="button">登录</button>
+          <button id="open-external" type="button" class="link">访问官网</button>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="./renderer.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,16 @@
+packages:
+  - apps/web
+  - apps/mobile
+  - apps/mobile-native
+  - apps/share
+  - apps/desktop
+  - apps/extension
+  - apps/browser-extension
+  - apps/miniapp
+  - packages/*
+
+onlyBuiltDependencies:
+  - esbuild
+allowBuilds:
+  electron: set this to true or false
+  esbuild: true

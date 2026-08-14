@@ -1,0 +1,101 @@
+Metadata-Version: 2.4
+Name: workama-sdk
+Version: 0.1.0
+Summary: WorkAMA 平台官方 Python SDK（基于标准库 urllib，仅类型层依赖 pydantic）
+Author: WorkAMA Team
+License: MIT
+Keywords: workama,sdk,agent,memory,workflow
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: pydantic>=2.0
+Provides-Extra: test
+Requires-Dist: pytest>=7.0; extra == "test"
+
+# WorkAMA Python SDK
+
+WorkAMA 开放平台官方 Python SDK，封装 `/api/v1` 下的常用接口（Agent 对话、记忆、知识、工作流等）。
+
+## 特性
+
+- 仅依赖 Python 标准库 `urllib.request` 发起 HTTP 请求，无 `requests`/`httpx` 等额外运行时依赖
+- 类型层使用 `pydantic` 提供结构化模型
+- 同时支持 Bearer Token 与 API Key 两种鉴权方式
+- 完整异常体系：`AuthenticationError` / `NotFoundError` / `RateLimitError` / `WorkAMAError`
+
+## 安装
+
+```bash
+pip install workama-sdk
+```
+
+本地开发：
+
+```bash
+cd packages/sdk-python
+pip install -e .[test]
+pytest tests/ -v
+```
+
+## 快速开始
+
+```python
+from workama_sdk import WorkAMAClient
+
+# 方式一：使用 API Key
+client = WorkAMAClient(base_url="http://localhost:20200", api_key="wk_xxx")
+
+# 方式二：使用 Bearer Token（POST /api/v1/auth/login 获取）
+client = WorkAMAClient(base_url="http://localhost:20200", access_token="eyJxxx")
+
+# 与 Agent 对话
+resp = client.chat(agent_id="agent_001", message="你好，介绍一下 WorkAMA")
+print(resp)
+
+# 创建记忆
+client.create_memory(content="用户喜欢深色模式", metadata={"category": "preference"})
+
+# 检索记忆
+recall = client.recall_memory(query="用户偏好", limit=5)
+
+# 搜索知识库
+result = client.search_knowledge(query="产品定价", dataset_id="ds_main")
+
+# 列出工作流并执行
+workflows = client.list_workflows(limit=20)
+run = client.run_workflow(workflow_id="wf_001", inputs={"topic": "周报"})
+
+client.close()
+```
+
+## API 列表
+
+| 方法 | 端点 | 说明 |
+| --- | --- | --- |
+| `chat(agent_id, message, session_id=None, stream=False)` | POST `/api/v1/agents/{id}/chat` | 与 Agent 对话 |
+| `list_agents(limit=50, cursor=None)` | GET `/api/v1/agents` | 分页列出 Agent |
+| `create_memory(content, metadata=None, importance=3)` | POST `/api/v1/memory-vectors` | 写入记忆 |
+| `recall_memory(query, limit=5)` | POST `/api/v1/memory-vectors/recall` | 检索记忆 |
+| `search_knowledge(query, dataset_id=None, limit=10)` | POST `/api/v1/knowledge/search` | 搜索知识 |
+| `list_workflows(limit=50)` | GET `/api/v1/workflows-v2` | 列出工作流 |
+| `run_workflow(workflow_id, inputs)` | POST `/api/v1/workflows-v2/{id}/runs` | 执行工作流 |
+
+## 错误处理
+
+```python
+from workama_sdk import AuthenticationError, NotFoundError, RateLimitError, WorkAMAError
+
+try:
+    client.chat("agent_x", "hello")
+except AuthenticationError as e:
+    print("鉴权失败", e.status_code, e.body)
+except NotFoundError as e:
+    print("资源不存在", e.status_code, e.body)
+except RateLimitError as e:
+    print("被限流", e.status_code, e.body)
+except WorkAMAError as e:
+    print("其他错误", e.status_code, e.body)
+```
+
+## License
+
+MIT

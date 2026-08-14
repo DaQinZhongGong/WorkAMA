@@ -1,0 +1,550 @@
+# WorkAMA Helm chart - Staging release values
+#
+# Usage:
+#   helm lint deploy/helm/workama/ -f deploy/helm/workama/values-staging.yaml
+#   helm template workama deploy/helm/workama/ -f deploy/helm/workama/values-staging.yaml
+#   helm upgrade --install workama deploy/helm/workama/ \
+#     -n workama-staging -f deploy/helm/workama/values-staging.yaml --create-namespace
+#
+# This file overrides deploy/helm/workama/values.yaml with staging-grade
+# resource requests/limits, replica counts, HPA, PDB, probes, ingress and
+# persistence. It is intentionally lighter than values-production.yaml
+# (fewer replicas, smaller HPA ceilings, smaller PVC) but still ships
+# production-grade securityContext, probes and NetworkPolicy so staging
+# behaves like production at a smaller scale.
+
+global:
+  imageRegistry: ""
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
+  domain: staging.workama.io
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# ---------------------------------------------------------------------------
+# Secrets - REPLACE every placeholder via an external secrets manager before
+# deploying. Staging secrets MUST be distinct from production secrets.
+# ---------------------------------------------------------------------------
+secrets:
+  jwtSecret: "REPLACE_VIA_SECRETS_MANAGER_STAGING"
+  jwtPrivateKey: "REPLACE_VIA_SECRETS_MANAGER_STAGING"
+  jwtPublicKey: "REPLACE_VIA_SECRETS_MANAGER_STAGING"
+  internalToken: "REPLACE_VIA_SECRETS_MANAGER_STAGING"
+  keyPepper: "REPLACE_VIA_SECRETS_MANAGER_STAGING"
+  encryptionKey: "REPLACE_VIA_SECRETS_MANAGER_STAGING"
+
+web:
+  platformApiUrl: "https://staging.workama.io/api"
+  agentWsUrl: "wss://staging.workama.io/ws"
+
+# ---------------------------------------------------------------------------
+# Application services - staging replica counts + production-grade resources.
+# Each stateful service keeps a preferred (NOT required) hostname
+# anti-affinity so staging can run on a 2-node cluster without starving.
+# ---------------------------------------------------------------------------
+appServices:
+  platform-api:
+    image: workama-platform-api
+    tag: latest
+    replicas: 2
+    port: 8000
+    service: true
+    healthPath: /healthz
+    readyPath: /readyz
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+      limits:
+        cpu: "2000m"
+        memory: "2Gi"
+    hpa:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 5
+      targetCPUUtilizationPercentage: 70
+    pdb:
+      enabled: true
+      minAvailable: 1
+    startupProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 12
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 15
+      timeoutSeconds: 3
+      failureThreshold: 3
+    readinessProbe:
+      httpGet:
+        path: /readyz
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 10001
+      runAsGroup: 10001
+      fsGroup: 10001
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: platform-api
+              topologyKey: kubernetes.io/hostname
+    env:
+      - name: WORKAMA_ENV
+        value: "staging"
+      - name: LOG_LEVEL
+        value: "info"
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: "http://otel-collector:4317"
+
+  platform-worker:
+    image: workama-platform-worker
+    tag: latest
+    replicas: 2
+    port: 8000
+    service: false
+    command: ["python", "-m", "workama_platform.worker"]
+    healthPath: /healthz
+    resources:
+      requests:
+        cpu: "250m"
+        memory: "256Mi"
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 30
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readinessProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 10001
+      runAsGroup: 10001
+      fsGroup: 10001
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    env:
+      - name: WORKAMA_ENV
+        value: "staging"
+      - name: LOG_LEVEL
+        value: "info"
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: "http://otel-collector:4317"
+
+  rag-worker:
+    image: workama-rag-worker
+    tag: latest
+    replicas: 1
+    port: 8000
+    service: false
+    command: ["python", "-m", "workama_platform.rag_worker"]
+    healthPath: /healthz
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+      limits:
+        cpu: "2000m"
+        memory: "2Gi"
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 10001
+      runAsGroup: 10001
+      fsGroup: 10001
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    env:
+      - name: WORKAMA_ENV
+        value: "staging"
+      - name: LOG_LEVEL
+        value: "info"
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: "http://otel-collector:4317"
+
+  gateway:
+    image: workama-gateway
+    tag: latest
+    replicas: 2
+    port: 8080
+    service: true
+    healthPath: /healthz
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+      limits:
+        cpu: "2000m"
+        memory: "2Gi"
+    hpa:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 5
+      targetCPUUtilizationPercentage: 70
+    pdb:
+      enabled: true
+      minAvailable: 1
+    startupProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 12
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 15
+      timeoutSeconds: 3
+      failureThreshold: 3
+    readinessProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 10001
+      runAsGroup: 10001
+      fsGroup: 10001
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: gateway
+              topologyKey: kubernetes.io/hostname
+    env:
+      - name: WORKAMA_ENV
+        value: "staging"
+      - name: LOG_LEVEL
+        value: "info"
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: "http://otel-collector:4317"
+
+  agent-server:
+    image: workama-agent-server
+    tag: latest
+    replicas: 2
+    port: 8001
+    service: true
+    healthPath: /healthz
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+      limits:
+        cpu: "2000m"
+        memory: "2Gi"
+    pdb:
+      enabled: true
+      minAvailable: 1
+    startupProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 12
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 10001
+      runAsGroup: 10001
+      fsGroup: 10001
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    env:
+      - name: WORKAMA_ENV
+        value: "staging"
+      - name: LOG_LEVEL
+        value: "info"
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: "http://otel-collector:4317"
+
+  sandbox-fleet:
+    image: workama-sandbox-fleet
+    tag: latest
+    replicas: 1
+    port: 8002
+    service: true
+    healthPath: /healthz
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+      limits:
+        cpu: "2000m"
+        memory: "2Gi"
+    pdb:
+      enabled: true
+      minAvailable: 1
+    securityContext:
+      runAsNonRoot: false
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    env:
+      - name: WORKAMA_ENV
+        value: "staging"
+      - name: LOG_LEVEL
+        value: "info"
+      - name: SANDBOX_REQUIRE_MICROVM
+        value: "true"
+
+  sandbox-agentd:
+    enabled: false
+
+  web:
+    image: workama-web
+    tag: latest
+    replicas: 2
+    port: 3000
+    service: true
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+    hpa:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 4
+      targetCPUUtilizationPercentage: 70
+    pdb:
+      enabled: true
+      minAvailable: 1
+    startupProbe:
+      httpGet:
+        path: /
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 12
+    livenessProbe:
+      httpGet:
+        path: /
+        port: http
+      periodSeconds: 15
+      timeoutSeconds: 3
+      failureThreshold: 3
+    readinessProbe:
+      httpGet:
+        path: /
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 101
+      runAsGroup: 101
+      fsGroup: 101
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+
+# ---------------------------------------------------------------------------
+# Sandbox fleet - staging keeps gVisor strict on a dedicated sandbox node.
+# ---------------------------------------------------------------------------
+sandboxFleet:
+  image: workama-sandbox-agentd:local
+  runtime: runsc
+  requireGvisor: true
+  dockerSocket:
+    enabled: false
+    path: /var/run/docker.sock
+
+# ---------------------------------------------------------------------------
+# Infrastructure dependencies - staging persistence (smaller than production).
+# ---------------------------------------------------------------------------
+postgres:
+  enabled: true
+  image: pgvector/pgvector:pg16
+  database: workama
+  username: workama
+  password: "REPLACE_VIA_SECRETS_MANAGER_STAGING"
+  storage: 30Gi
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+
+redis:
+  enabled: true
+  image: redis:7-alpine
+  storage: 5Gi
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+nats:
+  enabled: true
+  image: nats:2-alpine
+  storage: 10Gi
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+minio:
+  enabled: true
+  image: minio/minio:latest
+  accessKey: "REPLACE_VIA_SECRETS_MANAGER_STAGING"
+  secretKey: "REPLACE_VIA_SECRETS_MANAGER_STAGING"
+  storage: 50Gi
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+
+# Fallback resources used by services that do not define per-service
+# resources. Per-service values win over this default.
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+# Pod-level security context applied to all workama pods (in addition to the
+# per-container securityContext defined under appServices.*).
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
+  runAsNonRoot: true
+  fsGroup: 10001
+
+# Default container securityContext applied when a service does not define
+# its own securityContext.
+defaultSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+# Staging scheduling: preferred (NOT required) hostname anti-affinity so the
+# chart can fit on a 2-node staging cluster.
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/instance: workama
+          topologyKey: kubernetes.io/hostname
+
+tolerations: []
+
+topologySpreadConstraints: []
+
+# ---------------------------------------------------------------------------
+# NetworkPolicy - deny all ingress by default, only allow intra-namespace
+# traffic. Staging matches production semantics.
+# ---------------------------------------------------------------------------
+networkPolicy:
+  enabled: true
+  ingressFromSameNamespace: true
+
+# ---------------------------------------------------------------------------
+# Ingress - staging domain with TLS via cert-manager.
+# ---------------------------------------------------------------------------
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: staging.workama.io
+      paths:
+        - path: /
+          pathType: Prefix
+          service: web
+        - path: /api
+          pathType: Prefix
+          service: platform-api
+        - path: /v1
+          pathType: Prefix
+          service: gateway
+        - path: /ws
+          pathType: Prefix
+          service: agent-server
+  tls:
+    - secretName: workama-staging-tls
+      hosts:
+        - staging.workama.io

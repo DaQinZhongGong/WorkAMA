@@ -1,0 +1,343 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "workama.fullname" . }}-postgres
+  labels:
+    {{- include "workama.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  clusterIP: None
+  selector:
+    {{- include "workama.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "workama.fullname" . }}-postgres
+  labels:
+    {{- include "workama.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  serviceName: {{ include "workama.fullname" . }}-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "workama.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgres
+  template:
+    metadata:
+      labels:
+        {{- include "workama.labels" . | nindent 8 }}
+        app.kubernetes.io/component: postgres
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.image | quote }}
+          securityContext:
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "workama.fullname" . }}-secrets
+                  key: POSTGRES_PASSWORD
+          resources:
+            {{- toYaml .Values.postgres.resources | nindent 12 }}
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.postgres.username | quote }}, "-d", {{ .Values.postgres.database | quote }}]
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.postgres.username | quote }}, "-d", {{ .Values.postgres.database | quote }}]
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.postgres.storage }}
+---
+{{- end }}
+{{- if .Values.redis.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "workama.fullname" . }}-redis
+  labels:
+    {{- include "workama.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  selector:
+    {{- include "workama.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "workama.fullname" . }}-redis
+  labels:
+    {{- include "workama.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  serviceName: {{ include "workama.fullname" . }}-redis
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "workama.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+  template:
+    metadata:
+      labels:
+        {{- include "workama.labels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: redis
+          image: {{ .Values.redis.image | quote }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: redis
+              containerPort: 6379
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.redis.storage }}
+---
+{{- end }}
+{{- if .Values.nats.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "workama.fullname" . }}-nats
+  labels:
+    {{- include "workama.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nats
+spec:
+  selector:
+    {{- include "workama.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: nats
+  ports:
+    - name: nats
+      port: 4222
+      targetPort: nats
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "workama.fullname" . }}-nats
+  labels:
+    {{- include "workama.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nats
+spec:
+  serviceName: {{ include "workama.fullname" . }}-nats
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "workama.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: nats
+  template:
+    metadata:
+      labels:
+        {{- include "workama.labels" . | nindent 8 }}
+        app.kubernetes.io/component: nats
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: nats
+          image: {{ .Values.nats.image | quote }}
+          command: ["nats-server", "-js"]
+          securityContext:
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: nats
+              containerPort: 4222
+          resources:
+            {{- toYaml .Values.nats.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8222
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8222
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.nats.storage }}
+---
+{{- end }}
+{{- if .Values.minio.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "workama.fullname" . }}-minio
+  labels:
+    {{- include "workama.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+spec:
+  selector:
+    {{- include "workama.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+  ports:
+    - name: api
+      port: 9000
+      targetPort: api
+    - name: console
+      port: 9001
+      targetPort: console
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "workama.fullname" . }}-minio
+  labels:
+    {{- include "workama.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+spec:
+  serviceName: {{ include "workama.fullname" . }}-minio
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "workama.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: minio
+  template:
+    metadata:
+      labels:
+        {{- include "workama.labels" . | nindent 8 }}
+        app.kubernetes.io/component: minio
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: minio
+          image: {{ .Values.minio.image | quote }}
+          args: ["server", "/data", "--console-address", ":9001"]
+          securityContext:
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: api
+              containerPort: 9000
+            - name: console
+              containerPort: 9001
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "workama.fullname" . }}-secrets
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "workama.fullname" . }}-secrets
+                  key: MINIO_ROOT_PASSWORD
+          resources:
+            {{- toYaml .Values.minio.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: api
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: api
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.minio.storage }}
+{{- end }}

@@ -1,0 +1,10 @@
+WorkAMA has been installed as release {{ .Release.Name }}.
+
+Application services:
+  Web:          {{ include "workama.fullname" . }}-web:3000
+  Platform API: {{ include "workama.fullname" . }}-platform-api:8000
+  Gateway:      {{ include "workama.fullname" . }}-gateway:8080
+  Agent WS:     {{ include "workama.fullname" . }}-agent-server:8001
+
+For production, provide non-default values for secrets, use managed data
+services where appropriate, and enable an ingress with TLS.

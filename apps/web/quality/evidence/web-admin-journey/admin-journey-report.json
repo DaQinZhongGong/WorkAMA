@@ -1,0 +1,49 @@
+{
+  "started_at": "2026-07-28T09:25:38.867Z",
+  "finished_at": "2026-07-28T09:25:44.099Z",
+  "results": [
+    {
+      "step": "navigate",
+      "status": "start",
+      "detail": "http://localhost:3000",
+      "timestamp": "2026-07-28T09:25:38.869Z"
+    },
+    {
+      "step": "login",
+      "status": "pass",
+      "detail": "http://localhost:3000/chat",
+      "timestamp": "2026-07-28T09:25:39.962Z"
+    },
+    {
+      "step": "admin-dashboard",
+      "status": "pass",
+      "detail": "Admin layout rendered",
+      "timestamp": "2026-07-28T09:25:41.021Z"
+    },
+    {
+      "step": "sidebar-nav",
+      "status": "pass",
+      "detail": "13 nav items found",
+      "timestamp": "2026-07-28T09:25:41.047Z"
+    },
+    {
+      "step": "admin-workspaces",
+      "status": "pass",
+      "detail": "Workspaces page rendered",
+      "timestamp": "2026-07-28T09:25:42.044Z"
+    },
+    {
+      "step": "admin-billing",
+      "status": "pass",
+      "detail": "Billing page rendered",
+      "timestamp": "2026-07-28T09:25:43.029Z"
+    },
+    {
+      "step": "admin-audit-logs",
+      "status": "pass",
+      "detail": "Audit logs page rendered",
+      "timestamp": "2026-07-28T09:25:44.001Z"
+    }
+  ],
+  "all_passed": true
+}

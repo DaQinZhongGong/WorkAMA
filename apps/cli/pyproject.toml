@@ -1,0 +1,10 @@
+[project]
+name = "workama-cli"
+version = "0.1.0"
+description = "WorkAMA command line client"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+workama = "workama.cli:main"
+

@@ -1,0 +1,37 @@
+{
+  "name": "@workama/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WorkAMA desktop client — Tauri 2 shell + Electron AMA-Work skeleton around the existing Web app.",
+  "main": "out/main/main.js",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "check": "cargo check --manifest-path src-tauri/Cargo.toml",
+    "check:local-mcp": "cargo check --manifest-path src-tauri/Cargo.toml --features local-mcp-bridge",
+    "electron:dev": "electron-vite dev",
+    "electron:build": "electron-vite build",
+    "electron:preview": "electron-vite preview",
+    "electron:dist": "electron-vite build && electron-builder",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux",
+    "build-renderer": "pwsh scripts/build-renderer.ps1",
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.5.0",
+    "@types/node": "^20.14.0",
+    "electron": "^31.7.6",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
+  }
+}

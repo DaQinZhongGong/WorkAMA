@@ -1,0 +1,16 @@
+{
+  "$schema": "./smoke-result.schema.json",
+  "schema_version": "workama.community.smoke.v1",
+  "status": "not-run",
+  "evidence_scope": "local-only",
+  "package_type": "source",
+  "package_directory": "package",
+  "compose_project_name": "workama-community-smoke",
+  "compose_config_checked": false,
+  "containers_started": false,
+  "destructive_actions": false,
+  "signed": false,
+  "signature_status": "not-signed",
+  "production_attestation": false,
+  "note": "A local smoke result is not a production signature or attestation."
+}

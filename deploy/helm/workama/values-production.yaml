@@ -1,0 +1,703 @@
+# WorkAMA Helm chart - Production release values
+#
+# Usage:
+#   helm lint deploy/helm/workama/ -f deploy/helm/workama/values-production.yaml
+#   helm template workama deploy/helm/workama/ -f deploy/helm/workama/values-production.yaml
+#   helm upgrade --install workama deploy/helm/workama/ \
+#     -n workama -f deploy/helm/workama/values-production.yaml --create-namespace
+#
+# This file overrides deploy/helm/workama/values.yaml with production-grade
+# resource requests/limits, replica counts, HPA, PDB, probes, ingress,
+# persistence, multi-AZ scheduling (affinity + topologySpreadConstraints +
+# tolerations), hardened security context and external secret references for
+# the production environment.
+#
+# All sensitive values (secrets.*, postgres.password, minio.secretKey) are
+# placeholders that must be replaced via an external secrets manager
+# (sealed-secrets / external-secrets / Vault) BEFORE deploying. The chart's
+# Secret template (templates/secret.yaml) wires POSTGRES_PASSWORD, JWT_SECRET,
+# MINIO_SECRET_KEY etc. into a single "<release>-secrets" Secret which is
+# consumed by every service via envFrom.
+
+global:
+  imageRegistry: ""
+  imagePullPolicy: IfNotPresent
+  # Reference a pre-created imagePullSecret for the private registry.
+  # kubectl create secret docker-registry workama-registry \
+  #   --docker-server=registry.workama.io \
+  #   --docker-username=$REGISTRY_USER \
+  #   --docker-password=$REGISTRY_PASS \
+  #   --docker-email=devops@workama.io \
+  #   -n workama
+  imagePullSecrets:
+    - name: workama-registry
+  domain: workama.io
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations:
+    # Annotate the service account for cloud workload identity / IRSA if needed.
+    eks.amazonaws.com/role-arn: ""
+
+# ---------------------------------------------------------------------------
+# Secrets - REPLACE every placeholder via an external secrets manager before
+# deploying. The chart's Secret template (templates/secret.yaml) wires these
+# into a single "<release>-secrets" Secret consumed by every service via
+# envFrom. Env vars produced: JWT_SECRET, JWT_PRIVATE_KEY, JWT_PUBLIC_KEY,
+# INTERNAL_TOKEN, KEY_PEPPER, ENCRYPTION_KEY, POSTGRES_PASSWORD,
+# DATABASE_URL, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD, MINIO_ACCESS_KEY,
+# MINIO_SECRET_KEY.
+# ---------------------------------------------------------------------------
+secrets:
+  jwtSecret: "REPLACE_VIA_SECRETS_MANAGER"
+  jwtPrivateKey: "REPLACE_VIA_SECRETS_MANAGER"
+  jwtPublicKey: "REPLACE_VIA_SECRETS_MANAGER"
+  internalToken: "REPLACE_VIA_SECRETS_MANAGER"
+  keyPepper: "REPLACE_VIA_SECRETS_MANAGER"
+  encryptionKey: "REPLACE_VIA_SECRETS_MANAGER"
+
+web:
+  platformApiUrl: "https://workama.io/api"
+  agentWsUrl: "wss://workama.io/ws"
+
+# ---------------------------------------------------------------------------
+# Application services - production replica counts + production-grade
+# resources, HPA, PDB, probes and hardened security context. Each stateful
+# service (platform-api / gateway / web / agent-server) is pinned with a
+# required hostname anti-affinity and a cross-zone topologySpreadConstraint so
+# that a single node / single AZ failure cannot take the service below its
+# PDB minAvailable threshold.
+# ---------------------------------------------------------------------------
+appServices:
+  platform-api:
+    image: workama-platform-api
+    tag: latest
+    replicas: 3
+    port: 8000
+    service: true
+    healthPath: /healthz
+    readyPath: /readyz
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+    hpa:
+      enabled: true
+      minReplicas: 3
+      maxReplicas: 20
+      targetCPUUtilizationPercentage: 65
+      targetMemoryUtilizationPercentage: 75
+    pdb:
+      enabled: true
+      minAvailable: 2
+    startupProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 12
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 15
+      timeoutSeconds: 3
+      failureThreshold: 3
+    readinessProbe:
+      httpGet:
+        path: /readyz
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 10001
+      runAsGroup: 10001
+      fsGroup: 10001
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    # Required hostname anti-affinity: no two platform-api pods on same node.
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: platform-api
+            topologyKey: kubernetes.io/hostname
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: platform-api
+              topologyKey: topology.kubernetes.io/zone
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/component: platform-api
+    env:
+      - name: WORKAMA_ENV
+        value: "production"
+      - name: LOG_LEVEL
+        value: "info"
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: "http://otel-collector:4317"
+
+  platform-worker:
+    image: workama-platform-worker
+    tag: latest
+    replicas: 2
+    port: 8000
+    service: false
+    command: ["python", "-m", "workama_platform.worker"]
+    healthPath: /healthz
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+    hpa:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 70
+    pdb:
+      enabled: true
+      minAvailable: 1
+    startupProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 18
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 30
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readinessProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 10001
+      runAsGroup: 10001
+      fsGroup: 10001
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    env:
+      - name: WORKAMA_ENV
+        value: "production"
+      - name: LOG_LEVEL
+        value: "info"
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: "http://otel-collector:4317"
+
+  rag-worker:
+    image: workama-rag-worker
+    tag: latest
+    replicas: 2
+    port: 8000
+    service: false
+    command: ["python", "-m", "workama_platform.rag_worker"]
+    healthPath: /healthz
+    resources:
+      requests:
+        cpu: "750m"
+        memory: "1Gi"
+      limits:
+        cpu: "3000m"
+        memory: "4Gi"
+    hpa:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 8
+      targetCPUUtilizationPercentage: 70
+    pdb:
+      enabled: true
+      minAvailable: 1
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 10001
+      runAsGroup: 10001
+      fsGroup: 10001
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    env:
+      - name: WORKAMA_ENV
+        value: "production"
+      - name: LOG_LEVEL
+        value: "info"
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: "http://otel-collector:4317"
+
+  gateway:
+    image: workama-gateway
+    tag: latest
+    replicas: 3
+    port: 8080
+    service: true
+    healthPath: /healthz
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+    hpa:
+      enabled: true
+      minReplicas: 3
+      maxReplicas: 15
+      targetCPUUtilizationPercentage: 65
+      targetMemoryUtilizationPercentage: 75
+    pdb:
+      enabled: true
+      minAvailable: 2
+    startupProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 12
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 15
+      timeoutSeconds: 3
+      failureThreshold: 3
+    readinessProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 10001
+      runAsGroup: 10001
+      fsGroup: 10001
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: gateway
+            topologyKey: kubernetes.io/hostname
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: gateway
+              topologyKey: topology.kubernetes.io/zone
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/component: gateway
+    env:
+      - name: WORKAMA_ENV
+        value: "production"
+      - name: LOG_LEVEL
+        value: "info"
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: "http://otel-collector:4317"
+
+  agent-server:
+    image: workama-agent-server
+    tag: latest
+    replicas: 2
+    port: 8001
+    service: true
+    healthPath: /healthz
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+    hpa:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 70
+    pdb:
+      enabled: true
+      minAvailable: 1
+    startupProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 12
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 10001
+      runAsGroup: 10001
+      fsGroup: 10001
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: agent-server
+              topologyKey: kubernetes.io/hostname
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/component: agent-server
+    env:
+      - name: WORKAMA_ENV
+        value: "production"
+      - name: LOG_LEVEL
+        value: "info"
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: "http://otel-collector:4317"
+
+  sandbox-fleet:
+    image: workama-sandbox-fleet
+    tag: latest
+    replicas: 2
+    port: 8002
+    service: true
+    healthPath: /healthz
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+    pdb:
+      enabled: true
+      minAvailable: 1
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 20
+      timeoutSeconds: 3
+      failureThreshold: 3
+    readinessProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
+    # sandbox-fleet must mount the host container runtime (Docker socket or
+    # gVisor runsc) so runAsNonRoot=false is intentional. allowPrivilegeEscalation
+    # remains false to satisfy the chart baseline.
+    securityContext:
+      runAsNonRoot: false
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    env:
+      - name: WORKAMA_ENV
+        value: "production"
+      - name: LOG_LEVEL
+        value: "info"
+      - name: SANDBOX_REQUIRE_MICROVM
+        value: "true"
+
+  sandbox-agentd:
+    enabled: false
+
+  web:
+    image: workama-web
+    tag: latest
+    replicas: 3
+    port: 3000
+    service: true
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "256Mi"
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
+    hpa:
+      enabled: true
+      minReplicas: 3
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 70
+    pdb:
+      enabled: true
+      minAvailable: 2
+    startupProbe:
+      httpGet:
+        path: /
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 12
+    livenessProbe:
+      httpGet:
+        path: /
+        port: http
+      periodSeconds: 15
+      timeoutSeconds: 3
+      failureThreshold: 3
+    readinessProbe:
+      httpGet:
+        path: /
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 101
+      runAsGroup: 101
+      fsGroup: 101
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: web
+            topologyKey: kubernetes.io/hostname
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: web
+              topologyKey: topology.kubernetes.io/zone
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/component: web
+
+# ---------------------------------------------------------------------------
+# Sandbox fleet - production MUST run under the gVisor runsc runtime on a
+# dedicated sandbox node pool. Set dockerSocket.enabled=false and provision
+# the runsc runtime via containerd RuntimeClass instead.
+# ---------------------------------------------------------------------------
+sandboxFleet:
+  image: workama-sandbox-agentd:local
+  runtime: runsc
+  requireGvisor: true
+  dockerSocket:
+    enabled: false
+    path: /var/run/docker.sock
+
+# ---------------------------------------------------------------------------
+# Infrastructure dependencies - production persistence and resources.
+# Note: postgres / redis / minio StatefulSets are single-replica by chart
+# design (no HA clustering). For real HA, replace with managed services
+# (Cloud SQL / ElastiCache / Cloud Storage) and disable the in-cluster
+# StatefulSet via `*.enabled=false` + ExternalName Service overrides.
+# ---------------------------------------------------------------------------
+postgres:
+  enabled: true
+  image: pgvector/pgvector:pg16
+  database: workama
+  username: workama
+  password: "REPLACE_VIA_SECRETS_MANAGER"
+  storage: 100Gi
+  resources:
+    requests:
+      cpu: "1000m"
+      memory: "2Gi"
+    limits:
+      cpu: "4000m"
+      memory: "8Gi"
+
+redis:
+  enabled: true
+  image: redis:7-alpine
+  storage: 20Gi
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+
+nats:
+  enabled: true
+  image: nats:2-alpine
+  storage: 20Gi
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+
+minio:
+  enabled: true
+  image: minio/minio:latest
+  accessKey: "REPLACE_VIA_SECRETS_MANAGER"
+  secretKey: "REPLACE_VIA_SECRETS_MANAGER"
+  storage: 500Gi
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+
+# Fallback resources used by services that do not define per-service
+# resources. Per-service values win over this default.
+resources:
+  requests:
+    cpu: "200m"
+    memory: "256Mi"
+  limits:
+    cpu: "1000m"
+    memory: "1Gi"
+
+# Pod-level security context applied to all workama pods (in addition to the
+# per-container securityContext defined under appServices.*).
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
+  runAsNonRoot: true
+  fsGroup: 10001
+
+# Default container securityContext applied when a service does not define
+# its own securityContext.
+defaultSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+# ---------------------------------------------------------------------------
+# Scheduling - global defaults applied to every service that does not
+# override affinity / tolerations / topologySpreadConstraints. Each
+# stateful service above (platform-api / gateway / web / agent-server) ships
+# its own required hostname anti-affinity and cross-zone topology spread.
+# ---------------------------------------------------------------------------
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/instance: workama
+          topologyKey: kubernetes.io/hostname
+
+tolerations:
+  - key: workama/dedicated
+    operator: Equal
+    value: "true"
+    effect: NoSchedule
+  - key: workama/sandbox
+    operator: Equal
+    value: "true"
+    effect: NoSchedule
+
+topologySpreadConstraints: []
+
+# ---------------------------------------------------------------------------
+# NetworkPolicy - deny all ingress by default, only allow intra-namespace
+# traffic. Tighten further via networkPolicy.extraIngress if the cluster
+# runs other namespaces that must NOT reach WorkAMA pods.
+# ---------------------------------------------------------------------------
+networkPolicy:
+  enabled: true
+  ingressFromSameNamespace: true
+  egressAllowSameNamespace: true
+
+# ---------------------------------------------------------------------------
+# Ingress - production domain with TLS via cert-manager.
+# ---------------------------------------------------------------------------
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: workama.io
+      paths:
+        - path: /
+          pathType: Prefix
+          service: web
+        - path: /api
+          pathType: Prefix
+          service: platform-api
+        - path: /v1
+          pathType: Prefix
+          service: gateway
+        - path: /ws
+          pathType: Prefix
+          service: agent-server
+  tls:
+    - secretName: workama-production-tls
+      hosts:
+        - workama.io

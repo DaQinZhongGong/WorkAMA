@@ -1,0 +1,48 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "WorkAMA Desktop",
+  "version": "0.1.0",
+  "identifier": "com.workama.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm --dir ../../web dev",
+    "beforeBuildCommand": "pnpm --dir ../../web build",
+    "devUrl": "http://localhost:20204",
+    "frontendDist": "../../web/dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "WorkAMA",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' http://localhost:20204; connect-src 'self' http://localhost:20204 http://localhost:20200 ws://localhost:20201 wss: https:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/icon.png"],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://releases.workama.example.com/updates/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "pubkey": "",
+      "dialog": true,
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

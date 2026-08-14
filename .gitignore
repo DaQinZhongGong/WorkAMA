@@ -1,0 +1,91 @@
+# IDE
+/.idea/
+/.vscode/
+*.swp
+*.swo
+
+# AI / Agent 私服（不入仓）
+.workbuddy/
+.workbuddy/**
+.cache/
+.cache-groupb/
+.agents/context/private/
+.agents/secrets/
+.qoder/cache/
+.qoder/workspace-state.json
+.claude/settings.local.json
+.cursor/.cache/
+
+# WorkAMA
+# /WorkAMA-Docs/
+
+# Runtime and local configuration
+.env
+!.env.*
+!.env.example
+node_modules/
+.pnpm-store/
+dist/
+target/
+coverage/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*.log
+quality/evidence/**
+!quality/evidence/.gitkeep
+!quality/evidence/**/*.py
+
+# Local data
+.data/
+playwright-report/
+test-results/
+
+# Local runtime / venv / caches (不入仓，可重建)
+.local/
+.venv/
+.venv-test/
+
+# Backups
+*.bak
+*.backup
+*_bak
+*.orig
+*~
+
+# Temp files
+.tmp*
+*.tmp
+tmp/
+.tmp_*/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Secret material (不入仓)
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+*.secret
+
+# Root-level debug dumps / one-off scripts (不入仓)
+.db_out.txt
+.line117.txt
+.pytest_out.txt
+.verify_out.txt
+.verify_im.ps1
+.verify_im.sh
+_import_test.py
+workama-test-all.log
+temp_*
+temp-*
+
+# Quality artifacts
+quality/performance/results/
+deploy/perf/out/

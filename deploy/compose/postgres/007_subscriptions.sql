@@ -1,0 +1,2 @@
+-- Subscription, payment, invoice and entitlement schema is applied by
+-- ensure_subscription_schema for both fresh and existing local volumes.

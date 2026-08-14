@@ -1,0 +1,113 @@
+:root {
+  color-scheme: light dark;
+  --bg: #0b0f1a;
+  --fg: #e6edf3;
+  --muted: #8b97a7;
+  --accent: #4f8cff;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  -webkit-app-region: drag;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.app__title {
+  font-weight: 600;
+}
+
+.app__status {
+  flex: 1;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.app__controls {
+  display: flex;
+  gap: 6px;
+  -webkit-app-region: no-drag;
+}
+
+.app__controls button {
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  width: 30px;
+  height: 26px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.app__controls button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.app__login {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 48px 32px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.app__login h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.field input {
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fg);
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.actions button {
+  padding: 10px 18px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+}
+
+.actions button.link {
+  background: transparent;
+  color: var(--accent);
+}

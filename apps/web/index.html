@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#111827" />
+    <meta name="description" content="WorkAMA 是一体化 AI 中台：OpenAI 兼容 LLM 网关（WorkAMA Gateway）、多租户控制面、知识库 / RAG、应用编排、工作流、第三方平台集成、AMA-Chat/Work/Code/Design 智能体家族、Web/桌面端/移动端/小程序/CLI/浏览器插件多端客户端。" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="preconnect" href="http://localhost:20200" crossorigin="anonymous" />
+    <link rel="preconnect" href="http://localhost:20201" crossorigin="anonymous" />
+    <link rel="preconnect" href="http://localhost:20202" crossorigin="anonymous" />
+    <link rel="dns-prefetch" href="http://localhost:20200" />
+    <link rel="dns-prefetch" href="http://localhost:20201" />
+    <link rel="dns-prefetch" href="http://localhost:20202" />
+    <title>WorkAMA — OpenAI 兼容 LLM 网关 + 多租户 AI 中台 + 多智能体家族</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      window.addEventListener('load', () => {
+        if (!('serviceWorker' in navigator)) return
+        navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
+          .then((registration) => registration.update())
+          .catch(() => {})
+      })
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

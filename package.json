@@ -1,0 +1,35 @@
+{
+  "name": "workama",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.10.0",
+  "engines": {
+    "node": ">=20.19.0",
+    "pnpm": ">=11.10.0 <12"
+  },
+  "scripts": {
+    "dev": "turbo dev --parallel",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "test:e2e": "pnpm --filter @workama/web test:e2e",
+    "frontend:build": "pnpm --filter @workama/web build && pnpm --filter @workama/mobile build && pnpm --filter @workama/share build && pnpm --filter @workama/extension build && pnpm --filter @workama/miniapp build",
+    "frontend:test": "pnpm --filter @workama/web test && pnpm --filter @workama/mobile test && pnpm --filter @workama/share test && pnpm --filter @workama/extension test && pnpm --filter @workama/miniapp test",
+    "frontend:check": "pnpm --filter @workama/web lint && pnpm --filter @workama/mobile lint && pnpm --filter @workama/share lint && pnpm --filter @workama/extension build && pnpm --filter @workama/miniapp lint",
+    "frontend:verify": "pnpm frontend:check && pnpm frontend:build && pnpm frontend:test"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.5"
+  },
+  "workama": {
+    "frontend": {
+      "framework": "react",
+      "react": "19.x",
+      "bundler": "vite",
+      "router": "react-router-dom",
+      "clientState": "zustand",
+      "serverState": "@tanstack/react-query",
+      "mobile": "pwa"
+    }
+  }
+}

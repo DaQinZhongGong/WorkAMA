@@ -1,0 +1,10 @@
+{
+  "name": "workama-e2e-harness",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Self-contained Playwright E2E smoke harness for WorkAMA web console",
+  "dependencies": {
+    "playwright": "^1.62.1"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-07-21T09:05:32.343Z",
+  "routes_checked": 13,
+  "total_violations": 0,
+  "by_severity": {
+    "minor": 0,
+    "moderate": 0,
+    "serious": 0,
+    "critical": 0
+  },
+  "by_tag": {},
+  "violations": []
+}

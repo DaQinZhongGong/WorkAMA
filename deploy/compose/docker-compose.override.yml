@@ -1,0 +1,17 @@
+services:
+  platform-api:
+    environment:
+      # 允许 browser-smoke 在 web 容器内通过 http://web:3000 访问时通过 CORS 校验
+      CORS_ORIGINS: "http://localhost:20204,http://web:3000"
+
+  agent-server:
+    environment:
+      CORS_ORIGINS: "http://localhost:20204,http://web:3000"
+
+  web:
+    volumes:
+      - ../../apps/web/vite.config.ts:/app/apps/web/vite.config.ts:ro
+      - ../../apps/web/src:/app/apps/web/src:ro
+      - ../../packages/api-client/src:/app/packages/api-client/src:ro
+      - ../../packages/api-client/package.json:/app/packages/api-client/package.json:ro
+      - ../../packages/api-client/tsconfig.json:/app/packages/api-client/tsconfig.json:ro

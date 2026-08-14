@@ -1,0 +1,22 @@
+﻿apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "workama.fullname" . }}-config
+  labels:
+    {{- include "workama.labels" . | nindent 4 }}
+data:
+  POSTGRES_DB: {{ .Values.postgres.database | quote }}
+  POSTGRES_USER: {{ .Values.postgres.username | quote }}
+  REDIS_URL: {{ printf "redis://%s-redis:6379/0" (include "workama.fullname" .) | quote }}
+  NATS_URL: {{ printf "nats://%s-nats:4222" (include "workama.fullname" .) | quote }}
+  MINIO_ENDPOINT: {{ printf "%s-minio:9000" (include "workama.fullname" .) | quote }}
+  PLATFORM_API_URL: {{ printf "http://%s-platform-api:8000" (include "workama.fullname" .) | quote }}
+  AGENT_SERVER_URL: {{ printf "http://%s-agent-server:8001" (include "workama.fullname" .) | quote }}
+  SANDBOX_FLEET_URL: {{ printf "http://%s-sandbox-fleet:8002" (include "workama.fullname" .) | quote }}
+  GATEWAY_URL: {{ printf "http://%s-gateway:8080" (include "workama.fullname" .) | quote }}
+  SANDBOX_IMAGE: {{ .Values.sandboxFleet.image | quote }}
+  SANDBOX_RUNTIME: {{ .Values.sandboxFleet.runtime | quote }}
+  SANDBOX_REQUIRE_GVISOR: {{ .Values.sandboxFleet.requireGvisor | quote }}
+  CORS_ORIGINS: {{ printf "https://%s" .Values.global.domain | quote }}
+  WORKAMA_ENV: {{ .Values.workamaEnv | default "development" | quote }}
+  LOG_LEVEL: {{ .Values.workamaLogLevel | default "info" | quote }}

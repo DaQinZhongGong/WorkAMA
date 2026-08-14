@@ -1,0 +1,20 @@
+<view class="container login-container">
+  <view class="logo">
+    <text class="logo-text">WorkAMA</text>
+    <text class="logo-sub">智能工作助手</text>
+  </view>
+
+  <view class="card">
+    <view class="label">账号</view>
+    <input class="input" type="text" placeholder="请输入账号" value="{{account}}" bindinput="onAccountInput" />
+
+    <view class="label">密码</view>
+    <input class="input" type="password" placeholder="请输入密码" value="{{password}}" bindinput="onPasswordInput" />
+
+    <text class="error" wx:if="{{errorMsg}}">{{errorMsg}}</text>
+
+    <button class="primary-btn" bindtap="onLogin" disabled="{{loading}}">
+      {{loading ? '登录中...' : '登录'}}
+    </button>
+  </view>
+</view>

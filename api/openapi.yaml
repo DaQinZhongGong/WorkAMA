@@ -1,0 +1,983 @@
+openapi: 3.1.0
+info:
+  title: WorkAMA API
+  version: 0.1.0
+  description: Implemented P0 vertical-slice contract. The full P3 registry remains governed by WorkAMA-Docs/720.
+servers:
+  - url: http://localhost:20200/api/v1
+paths:
+  /auth/register:
+    post:
+      operationId: registerUser
+      tags: [Identity]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/AuthResponse' }
+  /auth/login:
+    post:
+      operationId: loginUser
+      tags: [Identity]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/AuthResponse' }
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      security: [{ bearerAuth: [] }]
+      tags: [Identity]
+      responses:
+        '200':
+          description: Current actor and tenant context
+          content: { application/json: { schema: { $ref: '#/components/schemas/User' } } }
+  /sessions:
+    get:
+      operationId: listSessions
+      security: [{ bearerAuth: [] }]
+      tags: [Agent]
+      responses: { '200': { description: Session page } }
+    post:
+      operationId: createSession
+      security: [{ bearerAuth: [] }]
+      tags: [Agent]
+      responses: { '201': { description: Session created } }
+  /sessions/{sessionId}/events:
+    get:
+      operationId: listSessionEvents
+      security: [{ bearerAuth: [] }]
+      tags: [Agent]
+      parameters:
+        - { name: sessionId, in: path, required: true, schema: { type: string } }
+        - { name: after, in: query, schema: { type: integer, default: 0 } }
+      responses: { '200': { description: Append-only event page } }
+  /sessions/{sessionId}/attachments:
+    post:
+      operationId: uploadSessionAttachment
+      security: [{ bearerAuth: [] }]
+      tags: [Agent]
+      parameters:
+        - { name: sessionId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties: { file: { type: string, format: binary } }
+      responses: { '201': { description: Attachment accepted } }
+  /sessions/{sessionId}/ws-tickets:
+    post:
+      operationId: createSessionWebSocketTicket
+      parameters:
+        - { name: sessionId, in: path, required: true, schema: { type: string } }
+      security: [{ bearerAuth: [] }]
+      tags: [Agent]
+      responses: { '200': { description: 60-second one-time ticket } }
+  /gateway/channels:
+    get:
+      operationId: listGatewayChannels
+      security: [{ bearerAuth: [] }]
+      tags: [Gateway]
+      responses: { '200': { description: Channel page } }
+    post:
+      operationId: createGatewayChannel
+      security: [{ bearerAuth: [] }]
+      tags: [Gateway]
+      responses: { '201': { description: Channel created } }
+  /gateway/model-mappings:
+    get:
+      operationId: listGatewayModelMappings
+      security: [{ bearerAuth: [] }]
+      tags: [Gateway]
+      responses: { '200': { description: Workspace model mapping page } }
+    post:
+      operationId: createGatewayModelMapping
+      security: [{ bearerAuth: [] }]
+      tags: [Gateway]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GatewayModelMappingRequest' }
+      responses: { '201': { description: Model mapping created or updated } }
+  /gateway/model-mappings/{mappingId}:
+    delete:
+      operationId: deleteGatewayModelMapping
+      security: [{ bearerAuth: [] }]
+      tags: [Gateway]
+      parameters:
+        - { name: mappingId, in: path, required: true, schema: { type: string } }
+      responses: { '204': { description: Model mapping removed } }
+  /gateway/tokens:
+    get:
+      operationId: listGatewayTokens
+      security: [{ bearerAuth: [] }]
+      tags: [Gateway]
+      responses: { '200': { description: Token page } }
+    post:
+      operationId: createGatewayToken
+      security: [{ bearerAuth: [] }]
+      tags: [Gateway]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GatewayTokenCreateRequest' }
+      responses: { '201': { description: Token created; plaintext appears once } }
+  /gateway/token-groups:
+    get:
+      operationId: listGatewayTokenGroups
+      security: [{ bearerAuth: [] }]
+      tags: [Gateway]
+      responses: { '200': { description: Workspace token group page } }
+    post:
+      operationId: createGatewayTokenGroup
+      security: [{ bearerAuth: [] }]
+      tags: [Gateway]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GatewayTokenGroupRequest' }
+      responses: { '201': { description: Token group created } }
+  /gateway/token-groups/{groupId}:
+    get:
+      operationId: getGatewayTokenGroup
+      security: [{ bearerAuth: [] }]
+      tags: [Gateway]
+      parameters:
+        - { name: groupId, in: path, required: true, schema: { type: string } }
+      responses: { '200': { description: Token group detail } }
+    patch:
+      operationId: updateGatewayTokenGroup
+      security: [{ bearerAuth: [] }]
+      tags: [Gateway]
+      parameters:
+        - { name: groupId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GatewayTokenGroupRequest' }
+      responses: { '200': { description: Token group updated } }
+    delete:
+      operationId: deleteGatewayTokenGroup
+      security: [{ bearerAuth: [] }]
+      tags: [Gateway]
+      parameters:
+        - { name: groupId, in: path, required: true, schema: { type: string } }
+      responses: { '204': { description: Token group removed and keys detached } }
+  /gateway/usage:
+    get:
+      operationId: getGatewayUsage
+      security: [{ bearerAuth: [] }]
+      tags: [Gateway]
+      responses: { '200': { description: Usage aggregate } }
+  /gateway/logs:
+    get:
+      operationId: listGatewayLogs
+      security: [{ bearerAuth: [] }]
+      tags: [Gateway]
+      responses: { '200': { description: Request log page } }
+  /billing/account:
+    get:
+      operationId: getBillingAccount
+      security: [{ bearerAuth: [] }]
+      tags: [Billing]
+      responses: { '200': { description: Dual-pool credit account } }
+  /billing/transactions:
+    get:
+      operationId: listBillingTransactions
+      security: [{ bearerAuth: [] }]
+      tags: [Billing]
+      responses: { '200': { description: Ledger page } }
+  /privacy/consents/{policyType}:
+    put:
+      operationId: setConsentDecision
+      security: [{ bearerAuth: [] }]
+      tags: [Privacy]
+      parameters:
+        - { name: policyType, in: path, required: true, schema: { type: string } }
+      responses: { '200': { description: Consent decision persisted } }
+  /privacy/data-requests:
+    get:
+      operationId: listDataRequests
+      security: [{ bearerAuth: [] }]
+      tags: [Privacy]
+      responses: { '200': { description: Data request page } }
+    post:
+      operationId: createDataRequest
+      security: [{ bearerAuth: [] }]
+      tags: [Privacy]
+      responses: { '202': { description: Request accepted } }
+  /oauth/clients:
+    get:
+      operationId: listOAuthClients
+      security: [{ bearerAuth: [] }]
+      tags: [OpenPlatform]
+      responses: { '200': { description: Workspace OAuth clients, secret material omitted, content: { application/json: { schema: { $ref: '#/components/schemas/ItemListOAuthClient' } } } } }
+    post:
+      operationId: createOAuthClient
+      security: [{ bearerAuth: [] }]
+      tags: [OpenPlatform]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/OAuthClientCreate' } } }
+      responses: { '201': { description: Client secret is returned once, content: { application/json: { schema: { $ref: '#/components/schemas/OAuthClientSecretResponse' } } } } }
+  /oauth/clients/{clientId}:
+    get:
+      operationId: getOAuthClient
+      security: [{ bearerAuth: [] }]
+      tags: [OpenPlatform]
+      parameters: [{ name: clientId, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OAuth client without secret, content: { application/json: { schema: { $ref: '#/components/schemas/OAuthClient' } } } } }
+    patch:
+      operationId: updateOAuthClient
+      security: [{ bearerAuth: [] }]
+      tags: [OpenPlatform]
+      parameters: [{ name: clientId, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/OAuthClientPatch' } } }
+      responses: { '200': { description: Updated OAuth client, content: { application/json: { schema: { $ref: '#/components/schemas/OAuthClient' } } } } }
+    delete:
+      operationId: deleteOAuthClient
+      security: [{ bearerAuth: [] }]
+      tags: [OpenPlatform]
+      parameters: [{ name: clientId, in: path, required: true, schema: { type: string } }]
+      responses: { '204': { description: Client revoked } }
+  /oauth/authorize:
+    get:
+      operationId: authorizeOAuthClient
+      security: [{ bearerAuth: [] }]
+      tags: [OpenPlatform]
+      parameters:
+        - { name: client_id, in: query, required: true, schema: { type: string, pattern: '^wama_client_[A-Za-z0-9_-]{16,80}$' } }
+        - { name: redirect_uri, in: query, required: true, schema: { type: string, format: uri } }
+        - { name: response_type, in: query, required: false, schema: { type: string, enum: [code], default: code } }
+        - { name: code_challenge, in: query, required: true, schema: { type: string, minLength: 43, maxLength: 128 } }
+        - { name: code_challenge_method, in: query, required: false, schema: { type: string, enum: [S256], default: S256 } }
+        - { name: scope, in: query, required: false, schema: { type: string, default: openid } }
+        - { name: state, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 256 } }
+      responses: { '200': { description: WorkAMA JSON authorization code; browser redirect/provider exchange remains pending_external, content: { application/json: { schema: { $ref: '#/components/schemas/OAuthAuthorizationResponse' } } } } }
+  /oauth/token:
+    post:
+      operationId: exchangeOAuthToken
+      tags: [OpenPlatform]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/OAuthTokenRequest' } } }
+      responses: { '200': { description: Access and refresh tokens; token material is never persisted in plaintext, content: { application/json: { schema: { $ref: '#/components/schemas/OAuthTokenResponse' } } } } }
+  /oauth/revocations:
+    post:
+      operationId: revokeOAuthToken
+      tags: [OpenPlatform]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/OAuthRevokeRequest' } } }
+      responses: { '204': { description: Access or refresh token revoked } }
+  /webhooks:
+    get:
+      operationId: listWebhooks
+      security: [{ bearerAuth: [] }]
+      tags: [OpenPlatform]
+      responses: { '200': { description: Workspace webhooks, secret material omitted, content: { application/json: { schema: { $ref: '#/components/schemas/ItemListWebhook' } } } } }
+    post:
+      operationId: createWebhook
+      security: [{ bearerAuth: [] }]
+      tags: [OpenPlatform]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/WebhookCreate' } } }
+      responses: { '201': { description: Webhook secret is returned once, content: { application/json: { schema: { $ref: '#/components/schemas/WebhookSecretResponse' } } } } }
+  /webhooks/{webhookId}:
+    get:
+      operationId: getWebhook
+      security: [{ bearerAuth: [] }]
+      tags: [OpenPlatform]
+      parameters: [{ name: webhookId, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Webhook without secret, content: { application/json: { schema: { $ref: '#/components/schemas/Webhook' } } } } }
+    patch:
+      operationId: updateWebhook
+      security: [{ bearerAuth: [] }]
+      tags: [OpenPlatform]
+      parameters: [{ name: webhookId, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/WebhookPatch' } } }
+      responses: { '200': { description: Updated webhook, content: { application/json: { schema: { $ref: '#/components/schemas/Webhook' } } } } }
+    delete:
+      operationId: deleteWebhook
+      security: [{ bearerAuth: [] }]
+      tags: [OpenPlatform]
+      parameters: [{ name: webhookId, in: path, required: true, schema: { type: string } }]
+      responses: { '204': { description: Webhook revoked } }
+  /webhooks/{webhookId}/tests:
+    post:
+      operationId: testWebhook
+      security: [{ bearerAuth: [] }]
+      tags: [OpenPlatform]
+      parameters: [{ name: webhookId, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/WebhookTestRequest' } } }
+      responses: { '200': { description: Delivery queued; controlled mock may complete locally, content: { application/json: { schema: { $ref: '#/components/schemas/WebhookDeliveryResponse' } } } } }
+  /webhooks/{webhookId}/deliveries:
+    get:
+      operationId: listWebhookDeliveries
+      security: [{ bearerAuth: [] }]
+      tags: [OpenPlatform]
+      parameters:
+        - { name: webhookId, in: path, required: true, schema: { type: string } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses: { '200': { description: Webhook delivery history, content: { application/json: { schema: { $ref: '#/components/schemas/ItemListWebhookDelivery' } } } } }
+  /a2a/agent-cards:
+    get:
+      operationId: listA2AAgentCards
+      security: [{ bearerAuth: [] }]
+      tags: [A2A]
+      responses: { '200': { description: Workspace Agent Cards with fingerprint-only trusted keys, content: { application/json: { schema: { $ref: '#/components/schemas/ItemListAgentCard' } } } } }
+    post:
+      operationId: createA2AAgentCard
+      security: [{ bearerAuth: [] }]
+      tags: [A2A]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AgentCardCreate' } } }
+      responses: { '201': { description: Agent Card created, content: { application/json: { schema: { $ref: '#/components/schemas/AgentCard' } } } } }
+  /a2a/agent-cards/{cardId}:
+    patch:
+      operationId: updateA2AAgentCard
+      security: [{ bearerAuth: [] }]
+      tags: [A2A]
+      parameters: [{ name: cardId, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AgentCardPatch' } } }
+      responses: { '200': { description: Updated Agent Card, content: { application/json: { schema: { $ref: '#/components/schemas/AgentCard' } } } } }
+  /a2a/public/agent-cards/{cardId}:
+    get:
+      operationId: getPublicA2AAgentCard
+      tags: [A2A]
+      parameters: [{ name: cardId, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Public discovery card with fingerprint-only trusted keys and no workspace_id, content: { application/json: { schema: { $ref: '#/components/schemas/PublicAgentCard' } } } } }
+  /a2a/tasks:
+    post:
+      operationId: createA2ATask
+      security: [{ bearerAuth: [] }]
+      tags: [A2A]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/A2ATaskCreate' } } }
+      responses: { '202': { description: Task accepted and remains pending_external until an external execution boundary is proven, content: { application/json: { schema: { $ref: '#/components/schemas/A2ATaskResponse' } } } } }
+  /a2a/tasks/{taskId}:
+    get:
+      operationId: getA2ATask
+      security: [{ bearerAuth: [] }]
+      tags: [A2A]
+      parameters: [{ name: taskId, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: A2A task, content: { application/json: { schema: { $ref: '#/components/schemas/A2ATaskResponse' } } } } }
+  /a2a/tasks/{taskId}/updates:
+    post:
+      operationId: updateA2ATask
+      security: [{ bearerAuth: [] }]
+      tags: [A2A]
+      parameters: [{ name: taskId, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/A2ATaskUpdate' } } }
+      responses: { '200': { description: Local update only; does not prove external execution, content: { application/json: { schema: { $ref: '#/components/schemas/A2ATaskResponse' } } } } }
+  /external-apps:
+    get:
+      operationId: listExternalApps
+      security: [{ bearerAuth: [] }]
+      tags: [ExternalApps]
+      responses: { '200': { description: Workspace external apps, credentials and endpoint details are masked, content: { application/json: { schema: { $ref: '#/components/schemas/ItemListExternalApp' } } } } }
+    post:
+      operationId: createExternalApp
+      security: [{ bearerAuth: [] }]
+      tags: [ExternalApps]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ExternalAppCreate' } } }
+      responses: { '201': { description: External app created, content: { application/json: { schema: { $ref: '#/components/schemas/ExternalApp' } } } } }
+  /external-apps/{appId}:
+    get:
+      operationId: getExternalApp
+      security: [{ bearerAuth: [] }]
+      tags: [ExternalApps]
+      parameters: [{ name: appId, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: External app detail, content: { application/json: { schema: { $ref: '#/components/schemas/ExternalApp' } } } } }
+    patch:
+      operationId: updateExternalApp
+      security: [{ bearerAuth: [] }]
+      tags: [ExternalApps]
+      parameters: [{ name: appId, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ExternalAppPatch' } } }
+      responses: { '200': { description: Updated external app, content: { application/json: { schema: { $ref: '#/components/schemas/ExternalApp' } } } } }
+  /external-apps/{appId}/invocations:
+    get:
+      operationId: listExternalAppInvocations
+      security: [{ bearerAuth: [] }]
+      tags: [ExternalApps]
+      parameters:
+        - { name: appId, in: path, required: true, schema: { type: string } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses: { '200': { description: Invocation history, content: { application/json: { schema: { $ref: '#/components/schemas/ItemListExternalInvocation' } } } } }
+    post:
+      operationId: invokeExternalApp
+      security: [{ bearerAuth: [] }]
+      tags: [ExternalApps]
+      parameters: [{ name: appId, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ExternalInvocationCreate' } } }
+      responses: { '202': { description: Controlled mock and http_test may complete; external provider execution remains pending_external or blocked, content: { application/json: { schema: { $ref: '#/components/schemas/ExternalInvocationResponse' } } } } }
+  /marketplace/templates:
+    get:
+      operationId: listMarketplaceTemplates
+      security: [{ bearerAuth: [] }]
+      tags: [ExternalApps]
+      parameters: [{ name: template_type, in: query, required: false, schema: { type: string, enum: [assistant, workflow, skill] } }]
+      responses: { '200': { description: Templates visible to the workspace, content: { application/json: { schema: { $ref: '#/components/schemas/ItemListTemplate' } } } } }
+    post:
+      operationId: createMarketplaceTemplate
+      security: [{ bearerAuth: [] }]
+      tags: [ExternalApps]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/TemplateCreate' } } }
+      responses: { '201': { description: Template created, content: { application/json: { schema: { $ref: '#/components/schemas/Template' } } } } }
+  /marketplace/templates/{templateId}/reviews:
+    post:
+      operationId: reviewMarketplaceTemplate
+      security: [{ bearerAuth: [] }]
+      tags: [ExternalApps]
+      parameters: [{ name: templateId, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/TemplateReview' } } }
+      responses: { '200': { description: Review status updated, content: { application/json: { schema: { $ref: '#/components/schemas/Template' } } } } }
+  /marketplace/templates/{templateId}/publish:
+    post:
+      operationId: publishMarketplaceTemplate
+      security: [{ bearerAuth: [] }]
+      tags: [ExternalApps]
+      parameters: [{ name: templateId, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Template published, content: { application/json: { schema: { $ref: '#/components/schemas/Template' } } } } }
+  /marketplace/templates/{templateId}/copies:
+    post:
+      operationId: copyMarketplaceTemplate
+      security: [{ bearerAuth: [] }]
+      tags: [ExternalApps]
+      parameters: [{ name: templateId, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/TemplateCopy' } } }
+      responses: { '201': { description: Copy accepted; materialization remains pending_template_materialization, content: { application/json: { schema: { $ref: '#/components/schemas/TemplateCopyResponse' } } } } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password, display_name]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 10 }
+        display_name: { type: string, minLength: 1, maxLength: 80 }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    User:
+      type: object
+      required: [id, email, display_name, workspace_id, org_id, role]
+      properties:
+        id: { type: string, pattern: '^usr_[0-9A-HJKMNP-TV-Z]{26}$' }
+        email: { type: string, format: email }
+        display_name: { type: string }
+        workspace_id: { type: string }
+        org_id: { type: string }
+        role: { type: string, enum: [owner, admin, member, viewer] }
+        onboarding_completed: { type: boolean }
+    GatewayModelMappingRequest:
+      type: object
+      required: [model, channel_id, upstream_model]
+      properties:
+        model: { type: string, minLength: 1, maxLength: 120, description: Unified caller-visible model name }
+        channel_id: { type: string, description: Workspace-owned gateway channel id }
+        upstream_model: { type: string, minLength: 1, maxLength: 120, description: Provider model name used during forwarding }
+    GatewayTokenCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        rpm_limit: { type: integer, minimum: 1, maximum: 100000, default: 60 }
+        tpm_limit: { type: integer, minimum: 1, default: 100000 }
+        model_whitelist: { type: array, items: { type: string }, default: [] }
+        pinned_channel_id:
+          type: [string, 'null']
+          description: Enabled workspace channel preferred before weighted failover candidates.
+        group_id:
+          type: [string, 'null']
+          description: Enabled workspace token group whose policy additionally constrains the key.
+    GatewayTokenGroupRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        rpm_limit: { type: integer, minimum: 1, maximum: 1000000, default: 600 }
+        tpm_limit: { type: integer, minimum: 1, default: 1000000 }
+        model_whitelist: { type: array, items: { type: string }, default: [] }
+        pinned_channel_id: { type: [string, 'null'] }
+        fallback_chain:
+          type: object
+          default: {}
+          description: Chat-only ordered fallback models keyed by the caller-visible primary model.
+          additionalProperties:
+            type: array
+            minItems: 1
+            maxItems: 5
+            items: { type: string, minLength: 1, maxLength: 120 }
+        model_mapping_override:
+          type: object
+          default: {}
+          description: Token-group mappings override workspace mappings. Each model maps enabled workspace channel ids to provider model names.
+          additionalProperties:
+            type: object
+            minProperties: 1
+            additionalProperties: { type: string, minLength: 1, maxLength: 120 }
+        status: { type: string, enum: [enabled, disabled], default: enabled }
+    OAuthClientCreate:
+      type: object
+      additionalProperties: false
+      required: [name, redirect_uris]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        redirect_uris: { type: array, minItems: 1, maxItems: 16, items: { type: string, format: uri } }
+        scopes: { type: array, maxItems: 32, items: { type: string, pattern: '^[a-z][a-z0-9._:-]{0,63}$' }, default: [openid] }
+        grant_types: { type: array, maxItems: 3, items: { type: string, enum: [authorization_code, refresh_token, client_credentials] }, default: [authorization_code, refresh_token] }
+    OAuthClientPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: [string, 'null'], minLength: 2, maxLength: 120 }
+        redirect_uris: { type: [array, 'null'], maxItems: 16, items: { type: string, format: uri } }
+        scopes: { type: [array, 'null'], maxItems: 32, items: { type: string, pattern: '^[a-z][a-z0-9._:-]{0,63}$' } }
+        status: { type: [string, 'null'], enum: [active, disabled] }
+    OAuthClient:
+      type: object
+      required: [id, client_id, name, redirect_uris, scopes, grant_types, status, secret_status, secret_last4, version, created_at, updated_at]
+      properties:
+        id: { type: string }
+        client_id: { type: string, pattern: '^wama_client_[A-Za-z0-9_-]{16,80}$' }
+        name: { type: string }
+        redirect_uris: { type: array, items: { type: string, format: uri } }
+        scopes: { type: array, items: { type: string } }
+        grant_types: { type: array, items: { type: string } }
+        status: { type: string, enum: [active, disabled, revoked] }
+        secret_status: { type: string, const: configured }
+        secret_last4: { type: string, minLength: 4, maxLength: 4 }
+        version: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    OAuthClientSecretResponse:
+      allOf:
+        - { $ref: '#/components/schemas/OAuthClient' }
+        - type: object
+          required: [client_secret]
+          properties:
+            client_secret: { type: string, minLength: 1, writeOnly: true }
+            secret_status: { type: string, const: shown_once }
+    ItemListOAuthClient:
+      type: object
+      required: [items]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/OAuthClient' } } }
+    OAuthAuthorizationResponse:
+      type: object
+      additionalProperties: false
+      required: [code, redirect_uri, expires_in, provider_execution]
+      properties:
+        code: { type: string, writeOnly: true }
+        state: { type: [string, 'null'] }
+        redirect_uri: { type: string, format: uri }
+        expires_in: { type: integer, const: 300 }
+        provider_execution: { type: string, const: pending_external_exchange }
+    OAuthTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [grant_type, client_id, client_secret]
+      properties:
+        grant_type: { type: string, enum: [authorization_code, refresh_token] }
+        client_id: { type: string }
+        client_secret: { type: string, writeOnly: true }
+        code: { type: [string, 'null'], writeOnly: true }
+        refresh_token: { type: [string, 'null'], writeOnly: true }
+        redirect_uri: { type: [string, 'null'], format: uri }
+        code_verifier: { type: [string, 'null'], minLength: 43, maxLength: 256, writeOnly: true }
+    OAuthTokenResponse:
+      type: object
+      required: [token_type, access_token, refresh_token, expires_in, scope]
+      properties:
+        token_type: { type: string, const: Bearer }
+        access_token: { type: string, writeOnly: true }
+        refresh_token: { type: string, writeOnly: true }
+        expires_in: { type: integer, const: 900 }
+        scope: { type: string }
+    OAuthRevokeRequest:
+      type: object
+      additionalProperties: false
+      required: [client_id, client_secret, token]
+      properties:
+        client_id: { type: string }
+        client_secret: { type: string, writeOnly: true }
+        token: { type: string, writeOnly: true }
+    WebhookCreate:
+      type: object
+      additionalProperties: false
+      required: [url, events]
+      properties:
+        url: { type: string, minLength: 1, maxLength: 2048, description: HTTPS endpoint or controlled mock:// or local:// endpoint }
+        events: { type: array, minItems: 1, maxItems: 32, items: { type: string } }
+        description: { type: string, maxLength: 500, default: '' }
+    WebhookPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        url: { type: [string, 'null'], maxLength: 2048 }
+        events: { type: [array, 'null'], maxItems: 32, items: { type: string } }
+        description: { type: [string, 'null'], maxLength: 500 }
+        status: { type: [string, 'null'], enum: [active, disabled] }
+    Webhook:
+      type: object
+      required: [id, url, events, description, secret_status, secret_last4, status, failure_count, version, created_at, updated_at]
+      properties:
+        id: { type: string }
+        url: { type: string }
+        events: { type: array, items: { type: string } }
+        description: { type: string }
+        secret_status: { type: string, const: configured }
+        secret_last4: { type: string, minLength: 4, maxLength: 4 }
+        status: { type: string, enum: [active, disabled, revoked] }
+        failure_count: { type: integer, minimum: 0 }
+        version: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    WebhookSecretResponse:
+      allOf:
+        - { $ref: '#/components/schemas/Webhook' }
+        - type: object
+          required: [secret]
+          properties:
+            secret: { type: string, minLength: 1, writeOnly: true }
+            secret_status: { type: string, const: shown_once }
+    ItemListWebhook:
+      type: object
+      required: [items]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/Webhook' } } }
+    WebhookTestRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        event_type: { type: string, default: artifact.created }
+        payload: { type: object, default: {} }
+        idempotency_key: { type: [string, 'null'], maxLength: 160 }
+    WebhookDeliveryResponse:
+      type: object
+      required: [id, event_type, idempotency_key, payload_hash, status, attempt, delivery_mode, external_execution, idempotency_replayed]
+      properties:
+        id: { type: string }
+        event_type: { type: string }
+        idempotency_key: { type: string }
+        payload_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        status: { type: string, enum: [pending, delivering, retry_wait, delivered, failed, disabled, blocked_external] }
+        attempt: { type: integer, minimum: 0 }
+        next_attempt_at: { type: [string, 'null'], format: date-time }
+        response_code: { type: [integer, 'null'], minimum: 100, maximum: 599 }
+        error_code: { type: [string, 'null'] }
+        delivery_mode: { type: string, enum: [controlled_mock, external, blocked_external] }
+        signature: { type: [string, 'null'], writeOnly: true }
+        delivered_at: { type: [string, 'null'], format: date-time }
+        external_execution: { type: string, const: queued }
+        idempotency_replayed: { type: boolean }
+    ItemListWebhookDelivery:
+      type: object
+      required: [items]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/WebhookDelivery' } } }
+    WebhookDelivery:
+      type: object
+      required: [id, event_type, idempotency_key, payload_hash, status, attempt, delivery_mode]
+      properties:
+        id: { type: string }
+        event_type: { type: string }
+        idempotency_key: { type: string }
+        payload_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        status: { type: string, enum: [pending, delivering, retry_wait, delivered, failed, disabled, blocked_external] }
+        attempt: { type: integer, minimum: 0 }
+        next_attempt_at: { type: [string, 'null'], format: date-time }
+        response_code: { type: [integer, 'null'] }
+        error_code: { type: [string, 'null'] }
+        delivery_mode: { type: string, enum: [controlled_mock, external, blocked_external] }
+        signature: { type: [string, 'null'], writeOnly: true }
+        delivered_at: { type: [string, 'null'], format: date-time }
+    AgentCardCreate:
+      type: object
+      additionalProperties: false
+      required: [name, agent_id, endpoint, version]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        agent_id: { type: string, minLength: 2, maxLength: 64 }
+        endpoint: { type: string, minLength: 1 }
+        version: { type: string, minLength: 1, maxLength: 64 }
+        capabilities: { type: array, maxItems: 64, items: { type: string } }
+        skills: { type: array, maxItems: 64, items: { type: string } }
+        authentication: { type: string, enum: [none, delegated, oauth], default: delegated }
+        metadata: { type: object, default: {} }
+        public_key_id: { type: string, default: default }
+        public_key_algorithm: { type: string, enum: [Ed25519], default: Ed25519 }
+        public_key: { type: [string, 'null'], writeOnly: true }
+    AgentCardPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        endpoint: { type: [string, 'null'] }
+        version: { type: [string, 'null'], maxLength: 64 }
+        capabilities: { type: [array, 'null'], maxItems: 64, items: { type: string } }
+        skills: { type: [array, 'null'], maxItems: 64, items: { type: string } }
+        status: { type: [string, 'null'], enum: [active, disabled, revoked] }
+        public_key_id: { type: string, default: default }
+        public_key_algorithm: { type: string, enum: [Ed25519], default: Ed25519 }
+        public_key: { type: [string, 'null'], writeOnly: true }
+    TrustedKey:
+      type: object
+      required: [key_id, algorithm, fingerprint, status]
+      properties:
+        key_id: { type: string }
+        algorithm: { type: string, const: Ed25519 }
+        fingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }
+        status: { type: string, enum: [active, revoked] }
+        valid_from: { type: [string, 'null'], format: date-time }
+        valid_until: { type: [string, 'null'], format: date-time }
+    AgentCard:
+      type: object
+      required: [id, name, agent_id, endpoint, version, capabilities, skills, authentication, status, trusted_keys, created_by, created_at, updated_at]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        agent_id: { type: string }
+        endpoint: { type: string }
+        version: { type: string }
+        capabilities: { type: array, items: { type: string } }
+        skills: { type: array, items: { type: string } }
+        authentication: { type: string, enum: [none, delegated, oauth] }
+        status: { type: string, enum: [active, disabled, revoked] }
+        trusted_keys: { type: array, items: { $ref: '#/components/schemas/TrustedKey' } }
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    PublicAgentCard:
+      type: object
+      required: [protocol, schema_version, name, agent_id, endpoint, version, capabilities, skills, authentication, trusted_keys, trust_status]
+      properties:
+        protocol: { type: string, const: a2a }
+        schema_version: { type: string, const: '1' }
+        name: { type: string }
+        agent_id: { type: string }
+        endpoint: { type: string }
+        version: { type: string }
+        capabilities: { type: array, items: { type: string } }
+        skills: { type: array, items: { type: string } }
+        authentication: { type: string, enum: [none, delegated, oauth] }
+        trusted_keys: { type: array, items: { $ref: '#/components/schemas/TrustedKey' } }
+        trust_status: { type: string, enum: [trusted, untrusted_external] }
+    ItemListAgentCard:
+      type: object
+      required: [items]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/AgentCard' } } }
+    A2ATaskCreate:
+      type: object
+      additionalProperties: false
+      required: [card_id, operation, message, idempotency_key]
+      properties:
+        card_id: { type: string }
+        operation: { type: string, minLength: 2, maxLength: 120 }
+        message: { type: string, minLength: 1, maxLength: 20000 }
+        artifact_refs: { type: array, maxItems: 32, items: { type: string } }
+        idempotency_key: { type: string, minLength: 1, maxLength: 160 }
+        signature_key_id: { type: string, default: default }
+        signature: { type: [string, 'null'], minLength: 64, maxLength: 128, writeOnly: true }
+        nonce: { type: [string, 'null'], minLength: 16, maxLength: 160, writeOnly: true }
+        signed_at: { type: [string, 'null'], format: date-time }
+    A2ATaskUpdate:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [queued, working, completed, failed, cancelled] }
+        result_summary: { type: string, maxLength: 2000 }
+        artifact_refs: { type: array, maxItems: 32, items: { type: string } }
+    A2ATaskResponse:
+      type: object
+      required: [id, card_id, operation, message_hash, artifact_refs, status, result_summary, idempotency_key, signature_key_id, signature_verified, signature_mode, execution_mode]
+      properties:
+        id: { type: string }
+        card_id: { type: string }
+        operation: { type: string }
+        message_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        artifact_refs: { type: array, items: { type: string } }
+        status: { type: string, enum: [queued, working, completed, failed, cancelled] }
+        result_summary: { type: string }
+        idempotency_key: { type: string }
+        signature_key_id: { type: string }
+        signature_verified: { type: boolean }
+        signature_mode: { type: string, enum: [ed25519, digest] }
+        execution_mode: { type: string, const: pending_external }
+        external_execution: { type: string, const: pending }
+        trust_status: { type: string, enum: [verified_public_key, verified_controlled] }
+        idempotency_replayed: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ExternalAppCreate:
+      type: object
+      additionalProperties: false
+      required: [name, provider, endpoint]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        provider: { type: string, enum: [dify, fastgpt, ragflow] }
+        endpoint: { type: string, minLength: 1, maxLength: 2048 }
+        credential: { type: [string, 'null'], writeOnly: true }
+        config: { type: object, default: {} }
+        enabled: { type: boolean, default: true }
+    ExternalAppPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: [string, 'null'], minLength: 2, maxLength: 120 }
+        endpoint: { type: [string, 'null'], maxLength: 2048 }
+        config: { type: [object, 'null'] }
+        enabled: { type: [boolean, 'null'] }
+        status: { type: [string, 'null'], enum: [active, disabled, revoked] }
+    ExternalApp:
+      type: object
+      required: [id, name, provider, endpoint, credential_configured, credential_last4, config, status, enabled, version, execution_mode, created_at, updated_at]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        provider: { type: string, enum: [dify, fastgpt, ragflow] }
+        endpoint: { type: string }
+        credential_configured: { type: boolean }
+        credential_last4: { type: [string, 'null'], minLength: 4, maxLength: 4 }
+        config: { type: object }
+        status: { type: string, enum: [active, disabled, revoked] }
+        enabled: { type: boolean }
+        version: { type: integer, minimum: 1 }
+        execution_mode: { type: string, enum: [controlled_mock, http_test, external_http, external_pending] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ItemListExternalApp:
+      type: object
+      required: [items]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/ExternalApp' } } }
+    ExternalInvocationCreate:
+      type: object
+      additionalProperties: false
+      required: [operation, idempotency_key]
+      properties:
+        operation: { type: string, minLength: 1, maxLength: 120 }
+        payload: { type: object, default: {} }
+        idempotency_key: { type: string, minLength: 1, maxLength: 160 }
+    ExternalInvocationResponse:
+      type: object
+      required: [id, app_id, operation, idempotency_key, input_hash, status, execution_mode, attempt, max_attempts, external_execution, idempotency_replayed]
+      properties:
+        id: { type: string }
+        app_id: { type: string }
+        operation: { type: string }
+        idempotency_key: { type: string }
+        input_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        status: { type: string, enum: [queued, running, succeeded, failed, pending_external] }
+        execution_mode: { type: string, enum: [controlled_mock, http_test, external_http, external_pending] }
+        result: { type: object }
+        error_code: { type: [string, 'null'] }
+        attempt: { type: integer, minimum: 0 }
+        max_attempts: { type: integer, minimum: 1 }
+        next_attempt_at: { type: [string, 'null'], format: date-time }
+        response_code: { type: [integer, 'null'], minimum: 100, maximum: 599 }
+        external_execution: { type: string, enum: [completed, queued, pending, blocked, failed, in_progress] }
+        idempotency_replayed: { type: boolean }
+        created_at: { type: string, format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
+    ItemListExternalInvocation:
+      type: object
+      required: [items]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/ExternalInvocationResponse' } } }
+    TemplateCreate:
+      type: object
+      additionalProperties: false
+      required: [name, display_name, template_type, version, artifact_ref]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 64, pattern: '^[a-z0-9][a-z0-9_-]{1,63}$' }
+        display_name: { type: string, minLength: 2, maxLength: 160 }
+        template_type: { type: string, enum: [assistant, workflow, skill] }
+        version: { type: string, minLength: 1, maxLength: 64 }
+        manifest: { type: object, default: {} }
+        artifact_ref: { type: string, minLength: 1, maxLength: 256 }
+        description: { type: string, maxLength: 2000, default: '' }
+    TemplateReview:
+      type: object
+      additionalProperties: false
+      required: [review_status, reason]
+      properties:
+        review_status: { type: string, enum: [approved, rejected] }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+    Template:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        display_name: { type: string }
+        template_type: { type: string, enum: [assistant, workflow, skill] }
+        version: { type: string }
+        review_status: { type: string }
+        status: { type: string }
+    ItemListTemplate:
+      type: object
+      required: [items]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/Template' } } }
+    TemplateCopy:
+      type: object
+      additionalProperties: false
+      required: [idempotency_key]
+      properties:
+        target_workspace_id: { type: [string, 'null'], maxLength: 128 }
+        idempotency_key: { type: string, minLength: 1, maxLength: 160 }
+    TemplateCopyResponse:
+      type: object
+      required: [id, template_id, idempotency_key, execution]
+      properties:
+        id: { type: string }
+        template_id: { type: string }
+        idempotency_key: { type: string }
+        execution: { type: string, const: pending_template_materialization }
+  responses:
+    AuthResponse:
+      description: Access token and current actor
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              access_token: { type: string }
+              token_type: { type: string, const: bearer }
+              user: { $ref: '#/components/schemas/User' }

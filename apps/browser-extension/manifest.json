@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "WorkAMA Assistant",
+  "version": "0.1.0",
+  "description": "在浏览器中捕获页面内容并与 WorkAMA 协作，支持快速登录、聊天与知识库归档。",
+  "permissions": ["activeTab", "storage", "sidePanel", "contextMenus"],
+  "host_permissions": [
+    "http://localhost:20200/*",
+    "https://*.workama.example.com/*"
+  ],
+  "action": {
+    "default_title": "打开 WorkAMA Assistant",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "dist/background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidebar.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost:20200/*", "https://*.workama.example.com/*"],
+      "js": ["dist/content.js"]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

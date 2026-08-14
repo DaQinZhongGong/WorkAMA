@@ -1,0 +1,35 @@
+[package]
+name = "workama-desktop"
+version = "0.1.0"
+description = "WorkAMA desktop shell"
+authors = ["WorkAMA"]
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "workama_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# 启用 tray-icon 特性以使用 Tauri 2 内置系统托盘 API（TrayIconBuilder 等）
+# image-png 支持加载 PNG 格式的托盘/窗口图标
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+uuid = { version = "1", features = ["v4"] }
+anyhow = "1"
+url = "2"
+# Tauri 2 官方插件：全局快捷键、原生通知、自动更新
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-updater = "2"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+# Deliberately opt-in. This only exposes the policy-gated authorization command;
+# it does not add an MCP transport or persist credentials.
+local-mcp-bridge = []

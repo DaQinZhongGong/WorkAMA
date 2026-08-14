@@ -1,0 +1,119 @@
+﻿# Alertmanager configuration for WorkAMA production alerts
+#
+# Routing:
+#   - critical alerts -> pager (SEV1, 15min response)
+#   - warning alerts  -> IM channel (SEV2/SEV3, 1h / 1 business day)
+#   - certificate alerts -> email + webhook
+#
+# Inhibition:
+#   - critical inhibits warning for the same service/category
+#   - service down inhibits latency/error alerts for the same service
+
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: "smtp.workama.io:587"
+  smtp_from: "alerts@workama.io"
+  smtp_auth_username: "alerts@workama.io"
+  smtp_auth_password: "REPLACE_VIA_SECRETS_MANAGER"
+
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+route:
+  receiver: "default-webhook"
+  group_by: ["alertname", "service", "category"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers:
+        - severity = "critical"
+      receiver: "critical-pager"
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 1h
+      continue: false
+    - matchers:
+        - severity = "warning"
+      receiver: "warning-im"
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      continue: false
+    - matchers:
+        - category = "certificates"
+      receiver: "cert-notify"
+      group_wait: 1m
+      repeat_interval: 12h
+      continue: false
+
+inhibit_rules:
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal: ["service", "category"]
+  - source_matchers:
+      - alertname = "WorkamaPlatformApiDown"
+    target_matchers:
+      - service = "platform-api"
+    equal: ["service"]
+  - source_matchers:
+      - alertname = "WorkamaGatewayDown"
+    target_matchers:
+      - service = "gateway"
+    equal: ["service"]
+  - source_matchers:
+      - alertname = "WorkamaTlsCertExpired"
+    target_matchers:
+      - alertname = "WorkamaTlsCertExpiringSoon"
+    equal: []
+
+receivers:
+  - name: "default-webhook"
+    webhook_configs:
+      - url: "http://platform-api:8000/internal/alerts/webhook"
+        send_resolved: true
+        max_alerts: 0
+
+  - name: "critical-pager"
+    webhook_configs:
+      - url: "http://platform-api:8000/internal/alerts/critical"
+        send_resolved: true
+        max_alerts: 0
+    # PagerDuty (uncomment in production):
+    # pagerduty_configs:
+    #   - routing_key: "REPLACE_VIA_SECRETS_MANAGER"
+    #     description: '{{ .CommonLabels.alertname }}: {{ .CommonAnnotations.summary }}'
+    #     severity: critical
+    #     send_resolved: true
+
+  - name: "warning-im"
+    webhook_configs:
+      - url: "http://platform-api:8000/internal/alerts/warning"
+        send_resolved: true
+        max_alerts: 0
+    # Slack/Feishu (uncomment in production):
+    # slack_configs:
+    #   - api_url: "REPLACE_VIA_SECRETS_MANAGER"
+    #     channel: "#workama-alerts"
+    #     title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+    #     text: '{{ .CommonAnnotations.description }}'
+    #     send_resolved: true
+
+  - name: "cert-notify"
+    webhook_configs:
+      - url: "http://platform-api:8000/internal/alerts/certificates"
+        send_resolved: true
+        max_alerts: 0
+    email_configs:
+      - to: "infra-team@workama.io"
+        headers:
+          Subject: '[WorkAMA Cert Alert] {{ .CommonLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Labels: {{ .Labels }}
+          {{ end }}
+        send_resolved: true

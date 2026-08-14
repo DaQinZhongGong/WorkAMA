@@ -1,0 +1,13 @@
+.git
+.idea
+.data
+node_modules
+**/node_modules
+dist
+**/dist
+**/target
+coverage
+quality/evidence/*.png
+quality/evidence/*.json
+WorkAMA-Docs
+apps/desktop/src-tauri

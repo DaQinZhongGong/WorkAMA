@@ -1,0 +1,101 @@
+asyncapi: 3.0.0
+info:
+  title: WorkAMA P0 event contract
+  version: 0.1.0
+channels:
+  meteringLlm:
+    address: metering.llm.v1
+    messages:
+      meteringLlmV1: { $ref: '#/components/messages/meteringLlmV1' }
+  sessionEvents:
+    address: /ws/sessions/{sessionId}
+    parameters:
+      sessionId: { description: Agent session ID }
+    messages:
+      messageCreated: { $ref: '#/components/messages/messageCreated' }
+      messageDelta: { $ref: '#/components/messages/messageDelta' }
+      messageCompleted: { $ref: '#/components/messages/messageCompleted' }
+      artifactCreated: { $ref: '#/components/messages/artifactCreated' }
+      runFailed: { $ref: '#/components/messages/runFailed' }
+  webhookDeliveryRequests:
+    address: webhook.delivery.requested.v1
+    messages:
+      webhookDeliveryRequestedV1: { $ref: '#/components/messages/webhookDeliveryRequestedV1' }
+operations:
+  publishMeteringLlm:
+    action: send
+    channel: { $ref: '#/channels/meteringLlm' }
+  receiveSessionEvents:
+    action: receive
+    channel: { $ref: '#/channels/sessionEvents' }
+  publishWebhookDeliveryRequested:
+    action: send
+    channel: { $ref: '#/channels/webhookDeliveryRequests' }
+components:
+  messages:
+    meteringLlmV1:
+      payload:
+        type: object
+        additionalProperties: false
+        required: [schema_version, event_id, event_type, occurred_at, producer, workspace_id, trace_id, idempotency_key, classification, payload]
+        properties:
+          schema_version: { const: 1 }
+          event_id: { type: string }
+          event_type: { const: metering.llm.v1 }
+          occurred_at: { type: string, format: date-time }
+          producer: { const: gateway }
+          workspace_id: { type: string }
+          trace_id: { type: string }
+          idempotency_key: { type: string }
+          classification: { const: C2 }
+          payload:
+            type: object
+            additionalProperties: false
+            required: [request_id, model, prompt_tokens, completion_tokens, latency_ms, status_code]
+            properties:
+              request_id: { type: string }
+              token_id: { type: [string, 'null'] }
+              channel_id: { type: [string, 'null'] }
+              model: { type: string }
+              prompt_tokens: { type: integer, minimum: 0 }
+              completion_tokens: { type: integer, minimum: 0 }
+              latency_ms: { type: integer, minimum: 0 }
+              status_code: { type: integer, minimum: 100, maximum: 599 }
+              error_code: { type: [string, 'null'] }
+    messageCreated:
+      payload: { type: object, required: [role, content], properties: { role: { const: user }, content: { type: string } } }
+    messageDelta:
+      payload: { type: object, required: [content], properties: { content: { type: string } } }
+    messageCompleted:
+      payload: { type: object, required: [role, content], properties: { role: { const: assistant }, content: { type: string } } }
+    artifactCreated:
+      payload: { type: object, required: [id, name], properties: { id: { type: string }, name: { type: string } } }
+    runFailed:
+      payload: { type: object, required: [code, message], properties: { code: { type: string }, message: { type: string } } }
+    webhookDeliveryRequestedV1:
+      payload:
+        type: object
+        additionalProperties: false
+        required: [schema_version, event_id, event_type, occurred_at, producer, workspace_id, trace_id, idempotency_key, classification, payload]
+        properties:
+          schema_version: { const: 1 }
+          event_id: { type: string }
+          event_type: { const: webhook.delivery.requested.v1 }
+          occurred_at: { type: string, format: date-time }
+          producer: { type: string, const: platform-api }
+          workspace_id: { type: string }
+          trace_id: { type: string }
+          idempotency_key: { type: string }
+          classification: { type: string, enum: [C2, C3] }
+          payload:
+            type: object
+            additionalProperties: false
+            required: [webhook_id, delivery_id, event_type, idempotency_key, payload_hash, delivery_mode]
+            properties:
+              webhook_id: { type: string }
+              delivery_id: { type: string }
+              event_type: { type: string }
+              idempotency_key: { type: string }
+              payload_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+              delivery_mode: { type: string, enum: [controlled_mock, external, blocked_external] }
+              payload_ref: { type: string, description: Reference to the persisted JSON payload; do not put credentials in the event. }

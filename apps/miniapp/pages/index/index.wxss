@@ -1,0 +1,23 @@
+.login-container {
+  padding-top: 120rpx;
+}
+
+.logo {
+  text-align: center;
+  margin-bottom: 64rpx;
+}
+
+.logo-text {
+  display: block;
+  font-size: 56rpx;
+  font-weight: 700;
+  color: #2563eb;
+  letter-spacing: 4rpx;
+}
+
+.logo-sub {
+  display: block;
+  font-size: 28rpx;
+  color: #64748b;
+  margin-top: 12rpx;
+}

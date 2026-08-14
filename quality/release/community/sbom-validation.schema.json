@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://workama.dev/schemas/community-sbom-validation.v1.json",
+  "title": "WorkAMA local SBOM validation result",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "status",
+    "is_sbom",
+    "format",
+    "local_only",
+    "signed",
+    "signature_status",
+    "production_attestation"
+  ],
+  "properties": {
+    "schema_version": { "const": "workama.community.sbom-validation.v1" },
+    "status": { "type": "string" },
+    "is_sbom": { "type": "boolean" },
+    "format": { "const": "CycloneDX JSON" },
+    "tool": { "type": "string" },
+    "sbom_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "local_only": { "const": true },
+    "signed": { "const": false },
+    "signature_status": { "const": "not-signed" },
+    "production_attestation": { "const": false }
+  },
+  "additionalProperties": true
+}

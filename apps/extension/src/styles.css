@@ -1,0 +1,66 @@
+:root {
+  color: #e7eef7;
+  background: #0b1220;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  color-scheme: dark;
+  --bg: #0b1220;
+  --surface: #111c2e;
+  --surface-raised: #17253b;
+  --border: #2a3b55;
+  --muted: #92a4bc;
+  --text: #e7eef7;
+  --accent: #4fd1c5;
+  --accent-strong: #2ca69b;
+  --warning: #f6c453;
+  --danger: #ff8c8c;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 280px; background: var(--bg); }
+button, input, textarea { font: inherit; }
+button { border: 0; cursor: pointer; }
+button:disabled { cursor: wait; opacity: .65; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.page { min-height: 100vh; padding: 18px; }
+.page--compact { min-height: 0; width: 340px; padding: 14px; }
+.shell { display: grid; gap: 16px; max-width: 760px; margin: 0 auto; }
+.brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand__mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--accent); color: #062b2a; font-size: 17px; font-weight: 800; }
+.brand__identity { display: flex; align-items: center; gap: 10px; }
+.brand__name { margin: 0; font-size: 15px; letter-spacing: .01em; }
+.eyebrow { margin: 0; color: var(--muted); font-size: 11px; }
+.surface { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: 0 10px 30px rgb(0 0 0 / 14%); }
+.surface__body { padding: 16px; }
+.surface__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.surface__title { margin: 0; color: var(--text); font-size: 14px; }
+.surface__description { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+.capture-panel { display: grid; gap: 16px; }
+.capture-panel__intro { display: grid; gap: 3px; }
+.capture-panel__intro h1 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
+.capture-panel__intro p { margin: 0; color: var(--muted); }
+.field { display: grid; gap: 6px; }
+.field__label { color: #b8c5d6; font-size: 12px; font-weight: 650; }
+.input, .textarea { width: 100%; border: 1px solid var(--border); border-radius: 7px; padding: 9px 10px; background: #0d1727; color: var(--text); }
+.input::placeholder, .textarea::placeholder { color: #60738d; }
+.textarea { min-height: 230px; resize: vertical; line-height: 1.55; }
+.textarea--small { min-height: 94px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.button { border: 1px solid var(--border); border-radius: 7px; padding: 9px 12px; background: var(--surface-raised); color: var(--text); font-weight: 650; transition: border-color .15s ease, background .15s ease; }
+.button:hover { border-color: #5d7696; background: #1d304b; }
+.button--primary { border-color: var(--accent-strong); background: var(--accent-strong); color: #061f24; }
+.button--primary:hover { border-color: var(--accent); background: var(--accent); }
+.button--quiet { padding: 7px 9px; background: transparent; color: #aec0d5; }
+.status { min-height: 20px; margin: 0; color: var(--accent); font-size: 12px; }
+.status--error { color: var(--danger); }
+.status--warning { color: var(--warning); }
+.privacy { margin: 0; color: var(--muted); font-size: 11px; }
+.privacy strong { color: #b9cadc; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { padding: 11px; border: 1px solid var(--border); border-radius: 8px; background: #0d1727; }
+.stat__value { display: block; color: var(--text); font-size: 16px; font-weight: 750; }
+.stat__label { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+.notice { border-left: 3px solid var(--accent); padding: 9px 11px; background: #102b35; color: #bfe8e3; font-size: 12px; }
+.divider { height: 1px; background: var(--border); }
+@media (max-width: 420px) { .page { padding: 12px; } .surface__body { padding: 13px; } .stats { grid-template-columns: 1fr; } }

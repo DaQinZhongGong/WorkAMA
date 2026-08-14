@@ -1,0 +1,29 @@
+{
+  "id": "/",
+  "name": "WorkAMA",
+  "short_name": "WorkAMA",
+  "description": "WorkAMA workspace for conversations, work and approvals.",
+  "start_url": "/chat",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait-primary",
+  "background_color": "#f8fafc",
+  "theme_color": "#111827",
+  "categories": ["business", "productivity"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 viewBox%3D%220 0 192 192%22%3E%3Crect width%3D%22192%22 height%3D%22192%22 rx%3D%2240%22 fill%3D%22%23111827%22%2F%3E%3Cpath d%3D%22M48 144V48h22l26 44 26-44h22v96h-22V84l-26 43-26-43v60z%22 fill%3D%22%23ffffff%22%2F%3E%3C%2Fsvg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 viewBox%3D%220 0 192 192%22%3E%3Crect width%3D%22192%22 height%3D%22192%22 rx%3D%2240%22 fill%3D%22%23111827%22%2F%3E%3Cpath d%3D%22M48 144V48h22l26 44 26-44h22v96h-22V84l-26 43-26-43v60z%22 fill%3D%22%23ffffff%22%2F%3E%3C%2Fsvg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

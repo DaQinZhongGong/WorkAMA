@@ -1,0 +1,28 @@
+{
+  "$schema": "./provenance.schema.json",
+  "schema_version": "workama.community.provenance.v1",
+  "predicate_type": "https://slsa.dev/provenance/v1",
+  "build_type": "https://workama.dev/community/source-package",
+  "builder": {
+    "id": "workama.local/community-release.ps1"
+  },
+  "subject": [
+    {
+      "name": "workama-community-source-package",
+      "digest": {
+        "sha256": "<package-inventory-digest>"
+      }
+    }
+  ],
+  "invocation": {
+    "command": "tools/community-release.ps1",
+    "action": "local-package",
+    "repository": "working-tree",
+    "generated_at": "<utc-timestamp>"
+  },
+  "local_only": true,
+  "signed": false,
+  "signature_status": "not-signed",
+  "production_attestation": false,
+  "notes": "Local provenance is not a production attestation or signature."
+}

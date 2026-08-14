@@ -1,0 +1,41 @@
+# WorkAMA
+
+> WorkAMA is a unified AI platform that combines an OpenAI-compatible LLM gateway, a multi-tenant control plane, a knowledge/RAG layer, an Agent family (AMA-Chat/Work/Code/Design), and multi-endpoint clients (Web, desktop, mobile PWA, miniapp, CLI, browser extension) into one stack. [Learn more](http://localhost:20204/)
+
+## Product lines
+
+- **G (Gateway)** — OpenAI-compatible LLM gateway: model onboarding, key management, rate limiting, routing, failover, metering, audit, content moderation. [Gateway overview](http://localhost:20204/gateway/channels) · [Free providers](http://localhost:20204/gateway/free-providers) · [Usage](http://localhost:20204/gateway/usage)
+- **P (Platform)** — multi-tenant AI control plane: workspaces, RBAC, SSO/SCIM, knowledge base + RAG, application orchestration, workflows, third-party integrations. [Knowledge](http://localhost:20204/knowledge) · [Workflows](http://localhost:20204/workflows) · [Billing](http://localhost:20204/admin/billing)
+- **A (Agents)** — AMA-Chat, AMA-Work, AMA-Code, AMA-Design agent family. [Agents](http://localhost:20204/agents) · [Code](http://localhost:20204/agents/code) · [Tools](http://localhost:20204/agents/tools) · [Automations](http://localhost:20204/agents/automations)
+- **C (Clients)** — Web console, desktop, mobile PWA, miniapp, CLI, browser extension. [Chat](http://localhost:20204/chat) · [Help](http://localhost:20204/help)
+
+## Edition tiers
+
+- **Community** — open source, self-hosted via Docker Compose. [Docs](http://localhost:20204/docs) · [Trust](http://localhost:20204/trust) · [Status](http://localhost:20204/status)
+- **Pro / SaaS** — single-tenant SaaS for individuals and small teams, Pro ¥99/mo. [Pricing](http://localhost:20204/pricing)
+- **Team** — shared knowledge bases, shared keys, multi-seat collaboration, Team ¥499/mo for 10 seats.
+- **Enterprise** — private deployment, SSO/SCIM, SIEM integration, high availability.
+
+## Public routes
+
+- [Landing](http://localhost:20204/) · [Login](http://localhost:20204/login) · [Pricing](http://localhost:20204/pricing) · [Docs](http://localhost:20204/docs) · [Status](http://localhost:20204/status) · [Trust](http://localhost:20204/trust) · [Help](http://localhost:20204/help) · [Sitemap](http://localhost:20204/sitemap.xml)
+
+## Authentication
+
+The default owner account in local development:
+
+- URL: `http://localhost:20204/login`
+- Email: `tester@workama.example.com`
+- Password: `WorkAMA-Test-2026!`
+
+## API surface
+
+REST API surface with 855+ operations under `/api/v1/...`. OpenAPI spec at `/openapi.json`. Interactive docs at `/docs`.
+
+## Standards
+
+- WCAG 2.2 AA across desktop, mobile, and i18n-en viewports (axe 0 violations on 25+ routes)
+- Lighthouse Accessibility 100/100, Best Practices 100/100, SEO 91/100
+- 32 baseline documents, 61 functional requirements, 16 nonfunctional requirements, 144 acceptance scenarios, 176 PostgreSQL tables
+- 18 workama-* containers in production compose stack
+- 3604 pytest passed on the platform-api backend

@@ -1,0 +1,31 @@
+{
+  "name": "@workama/browser-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "WorkAMA Assistant 浏览器插件 - 在浏览器中捕获页面内容并与 WorkAMA 后端交互",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run build && npm test"
+  },
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.2",
+    "@types/chrome": "^0.1.1",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
+  }
+}

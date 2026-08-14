@@ -1,0 +1,33 @@
+{
+  "$schema": "./package-manifest.schema.json",
+  "schema_version": "workama.community.package-manifest.v1",
+  "package_name": "workama-community",
+  "package_type": "source",
+  "release_channel": "community",
+  "generated_at": "<utc-timestamp>",
+  "package_directory": "package",
+  "file_count": 0,
+  "inventory_digest": "sha256:<64-lowercase-hex-chars>",
+  "files": [],
+  "local_evidence": {
+    "status": "not-run",
+    "scope": "local-only",
+    "signed": false,
+    "signature_status": "not-signed",
+    "production_attestation": false
+  },
+  "sbom": {
+    "status": "not-generated",
+    "file": null,
+    "is_sbom": false,
+    "tool": null,
+    "production_attestation": false
+  },
+  "provenance": {
+    "status": "not-generated",
+    "file": "provenance.json",
+    "signed": false,
+    "signature_status": "not-signed",
+    "production_attestation": false
+  }
+}

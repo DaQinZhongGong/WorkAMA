@@ -1,0 +1,44 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/chat/chat",
+    "pages/me/me"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#fff",
+    "navigationBarTitleText": "WorkAMA",
+    "navigationBarTextStyle": "black"
+  },
+  "tabBar": {
+    "color": "#666",
+    "selectedColor": "#2563eb",
+    "backgroundColor": "#fff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "assets/home.png",
+        "selectedIconPath": "assets/home-active.png"
+      },
+      {
+        "pagePath": "pages/chat/chat",
+        "text": "对话",
+        "iconPath": "assets/chat.png",
+        "selectedIconPath": "assets/chat-active.png"
+      },
+      {
+        "pagePath": "pages/me/me",
+        "text": "我的",
+        "iconPath": "assets/me.png",
+        "selectedIconPath": "assets/me-active.png"
+      }
+    ]
+  },
+  "networkTimeout": {
+    "request": 10000,
+    "connectSocket": 10000
+  },
+  "debug": false
+}

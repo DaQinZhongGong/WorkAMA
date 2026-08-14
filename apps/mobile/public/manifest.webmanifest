@@ -1,0 +1,55 @@
+{
+  "id": "/",
+  "name": "WorkAMA Mobile",
+  "short_name": "WorkAMA",
+  "description": "WorkAMA mobile workspace — chat, agents, knowledge, and settings.",
+  "start_url": "/chat",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait-primary",
+  "background_color": "#eef2f6",
+  "theme_color": "#172033",
+  "categories": ["business", "productivity"],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Chat",
+      "short_name": "Chat",
+      "url": "/chat",
+      "description": "Open conversations"
+    },
+    {
+      "name": "Agents",
+      "short_name": "Agents",
+      "url": "/agents",
+      "description": "Browse AI agents"
+    },
+    {
+      "name": "Knowledge",
+      "short_name": "Knowledge",
+      "url": "/knowledge",
+      "description": "Knowledge bases"
+    },
+    {
+      "name": "Settings",
+      "short_name": "Settings",
+      "url": "/settings",
+      "description": "Workspace settings"
+    }
+  ],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 viewBox%3D%220 0 192 192%22%3E%3Crect width%3D%22192%22 height%3D%22192%22 rx%3D%2240%22 fill%3D%22%23172033%22%2F%3E%3Cpath d%3D%22M48 144V48h22l26 44 26-44h22v96h-22V84l-26 43-26-43v60z%22 fill%3D%22%23ffffff%22%2F%3E%3C%2Fsvg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 viewBox%3D%220 0 512 512%22%3E%3Crect width%3D%22512%22 height%3D%22512%22 rx%3D%22104%22 fill%3D%22%23172033%22%2F%3E%3Cpath d%3D%22M128 384V128h59l69 117 69-117h59v256h-59V224l-69 115-69-115v160z%22 fill%3D%22%23ffffff%22%2F%3E%3C%2Fsvg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

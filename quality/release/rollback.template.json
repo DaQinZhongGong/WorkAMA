@@ -1,0 +1,7 @@
+{
+  "status": "passed",
+  "rollback_version": "0.9.0",
+  "data_preservation_check": "passed",
+  "migration_handling": "Forward-fix verified for irreversible migration changes.",
+  "executed_at": "2026-01-01T00:00:00Z"
+}

@@ -1,0 +1,53 @@
+{
+  "suite": "web-react-final-e2e-journey",
+  "started_at": "2026-07-27T11:22:33.575Z",
+  "finished_at": "2026-07-27T11:24:40.177Z",
+  "duration_ms": 126600,
+  "journeys": [
+    {
+      "name": "login",
+      "status": "failed",
+      "duration_ms": 23808,
+      "error": "page.waitForURL: Timeout 20000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================",
+      "screenshot": "quality/evidence/web-react-final/e2e-failure-login.png"
+    },
+    {
+      "name": "chat",
+      "status": "failed",
+      "duration_ms": 23719,
+      "error": "page.waitForURL: Timeout 20000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================",
+      "screenshot": "quality/evidence/web-react-final/e2e-failure-chat.png"
+    },
+    {
+      "name": "navigation",
+      "status": "failed",
+      "duration_ms": 23653,
+      "error": "page.waitForURL: Timeout 20000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================",
+      "screenshot": "quality/evidence/web-react-final/e2e-failure-navigation.png"
+    },
+    {
+      "name": "create-session",
+      "status": "failed",
+      "duration_ms": 23727,
+      "error": "page.waitForURL: Timeout 20000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================",
+      "screenshot": "quality/evidence/web-react-final/e2e-failure-create-session.png"
+    },
+    {
+      "name": "error-handling",
+      "status": "passed",
+      "duration_ms": 6852
+    },
+    {
+      "name": "responsive",
+      "status": "failed",
+      "duration_ms": 23746,
+      "error": "page.waitForURL: Timeout 20000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================",
+      "screenshot": "quality/evidence/web-react-final/e2e-failure-responsive.png"
+    }
+  ],
+  "summary": {
+    "total": 6,
+    "passed": 1,
+    "failed": 5
+  }
+}

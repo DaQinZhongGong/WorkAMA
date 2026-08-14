@@ -1,0 +1,505 @@
+name: workama
+
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.128.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "${OTEL_GRPC_PORT:-20240}:4317"
+      - "${OTEL_HTTP_PORT:-20241}:4318"
+      - "${OTEL_METRICS_PORT:-20242}:9464"
+      - "${OTEL_HEALTH_PORT:-20243}:13133"
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "validate", "--config=/etc/otelcol-contrib/config.yaml"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus-rules.yml:/etc/prometheus/rules/workama.yml:ro
+      - workama-prometheus:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-20231}:9090"
+    depends_on:
+      otel-collector:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-workama_grafana}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SERVER_ROOT_URL: http://localhost:${GRAFANA_PORT:-20230}
+    volumes:
+      - workama-grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "${GRAFANA_PORT:-20230}:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-workama}
+      POSTGRES_USER: ${POSTGRES_USER:-workama}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-workama_dev}
+    ports:
+      - "${POSTGRES_PORT:-20210}:5432"
+    volumes:
+      - workama-postgres:/var/lib/postgresql/data
+      - ./postgres/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-workama} -d ${POSTGRES_DB:-workama}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  migrations:
+    image: postgres:16-alpine
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-workama}
+      PGUSER: ${POSTGRES_USER:-workama}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-workama_dev}
+    volumes:
+      - ./postgres:/migrations:ro
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        for migration in /migrations/*.sql; do
+          case "$$migration" in
+            */001_init.sql) continue ;;
+          esac
+          echo "Applying $$(basename "$$migration")"
+          psql -v ON_ERROR_STOP=1 -f "$$migration"
+        done
+        echo "All WorkAMA migrations applied"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-20211}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  nats:
+    image: nats:2-alpine
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "${NATS_PORT:-20212}:4222"
+      - "${NATS_MONITOR_PORT:-20213}:8222"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-workama}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-workama_minio}
+    ports:
+      - "${MINIO_PORT:-20220}:9000"
+      - "${MINIO_CONSOLE_PORT:-20221}:9001"
+    volumes:
+      - workama-minio:/data
+
+  platform-api:
+    build:
+      context: ../..
+      dockerfile: apps/platform-api/Dockerfile
+    volumes:
+      # Mount local src/tests directories so code edits are reflected
+      # inside the container without rebuilding the image.
+      # workama_observability remains from image build (rarely changes).
+      - ../../apps/platform-api/src:/app/src:ro
+      - ../../apps/platform-api/tests:/app/tests:ro
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-workama}:${POSTGRES_PASSWORD:-workama_dev}@postgres:5432/${POSTGRES_DB:-workama}
+      REDIS_URL: redis://redis:6379/0
+      NATS_URL: nats://nats:4222
+      JWT_SECRET: ${JWT_SECRET:-change-this-jwt-secret}
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:-}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:-}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-change-this-internal-token}
+      KEY_PEPPER: ${KEY_PEPPER:-change-this-key-pepper}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:20204,http://localhost:20205,http://localhost:3000,http://web:3000,http://miniapp:80}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-25}
+      SMTP_FROM: ${SMTP_FROM:-notifications@workama.local}
+      AUTH_DEBUG_TOKENS: ${AUTH_DEBUG_TOKENS:-true}
+      AUTH_OAUTH_ENABLED: ${AUTH_OAUTH_ENABLED:-false}
+      OAUTH_REDIRECT_BASE_URL: ${OAUTH_REDIRECT_BASE_URL:-http://localhost:20200}
+      WORKAMA_PASSKEY_RP_ID: ${WORKAMA_PASSKEY_RP_ID:-localhost}
+      WORKAMA_PASSKEY_ORIGIN: ${WORKAMA_PASSKEY_ORIGIN:-http://localhost:20204}
+      WORKAMA_PASSKEY_RP_NAME: ${WORKAMA_PASSKEY_RP_NAME:-WorkAMA}
+      WORKAMA_PASSKEY_TIMEOUT_MS: ${WORKAMA_PASSKEY_TIMEOUT_MS:-60000}
+      WORKAMA_MCP_STDIO_ENABLED: ${WORKAMA_MCP_STDIO_ENABLED:-false}
+      WORKAMA_MCP_STDIO_ALLOWED_COMMANDS: ${WORKAMA_MCP_STDIO_ALLOWED_COMMANDS:-}
+      WORKAMA_MCP_TRANSPORT_TIMEOUT_SECONDS: ${WORKAMA_MCP_TRANSPORT_TIMEOUT_SECONDS:-30}
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
+      GITHUB_OAUTH_AUTHORIZATION_URL: ${GITHUB_OAUTH_AUTHORIZATION_URL:-https://github.com/login/oauth/authorize}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      GOOGLE_OAUTH_AUTHORIZATION_URL: ${GOOGLE_OAUTH_AUTHORIZATION_URL:-https://accounts.google.com/o/oauth2/v2/auth}
+      SETUP_TOKEN: ${SETUP_TOKEN:-}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-workama}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-workama_minio}
+      AGENT_SERVER_URL: http://agent-server:8001
+      SANDBOX_FLEET_URL: http://sandbox-fleet:8002
+      GATEWAY_URL: http://gateway:8080
+      # Go gateway feature flag: when enabled, /v1/chat/completions and
+      # /v1/models are reverse-proxied to the Go gateway (apps/gateway);
+      # Python relay is kept as fallback. Set false/0/no to revert.
+      GATEWAY_GO_CHAT_COMPLETIONS_ENABLED: ${GATEWAY_GO_CHAT_COMPLETIONS_ENABLED:-true}
+      GATEWAY_GO_URL: http://gateway:8080
+      OTEL_ENABLED: ${OTEL_ENABLED:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      WORKAMA_MODERATION_MODEL_ENABLED: ${WORKAMA_MODERATION_MODEL_ENABLED:-false}
+      WORKAMA_MODERATION_MODEL_PROVIDER: ${WORKAMA_MODERATION_MODEL_PROVIDER:-none}
+      WORKAMA_MODERATION_MODEL_ENDPOINT: ${WORKAMA_MODERATION_MODEL_ENDPOINT:-}
+      WORKAMA_MODERATION_MODEL_API_KEY: ${WORKAMA_MODERATION_MODEL_API_KEY:-}
+      WORKAMA_MODERATION_MODEL_MODEL: ${WORKAMA_MODERATION_MODEL_MODEL:-workama-moderation}
+      WORKAMA_MODERATION_MODEL_VERSION: ${WORKAMA_MODERATION_MODEL_VERSION:-unconfigured}
+      WORKAMA_MODERATION_MODEL_ALLOWED_HOSTS: ${WORKAMA_MODERATION_MODEL_ALLOWED_HOSTS:-}
+      WORKAMA_ENV: ${WORKAMA_ENV:-development}
+      # 性能优化：DB 连接池规模（预热连接数 / 最大连接数），按并发负载调整
+      DB_POOL_MIN_SIZE: ${DB_POOL_MIN_SIZE:-5}
+      DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-20}
+      # 性能优化：uvicorn worker 数（适配多核，提升并发吞吐）
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-2}
+    ports:
+      - "${PLATFORM_API_PORT:-20200}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      otel-collector:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  platform-worker:
+    build:
+      context: ../..
+      dockerfile: apps/platform-api/Dockerfile
+    command: ["python", "-m", "workama_platform.worker"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-workama}:${POSTGRES_PASSWORD:-workama_dev}@postgres:5432/${POSTGRES_DB:-workama}
+      REDIS_URL: redis://redis:6379/0
+      NATS_URL: nats://nats:4222
+      JWT_SECRET: ${JWT_SECRET:-change-this-jwt-secret}
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:-}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:-}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-change-this-internal-token}
+      KEY_PEPPER: ${KEY_PEPPER:-change-this-key-pepper}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-25}
+      SMTP_FROM: ${SMTP_FROM:-notifications@workama.local}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-workama}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-workama_minio}
+      OTEL_ENABLED: ${OTEL_ENABLED:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      WORKAMA_ENV: ${WORKAMA_ENV:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+      nats:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      otel-collector:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/workama-platform-worker.heartbeat && test $$(($$(date +%s) - $$(stat -c %Y /tmp/workama-platform-worker.heartbeat))) -lt 30"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+
+  gateway:
+    build:
+      context: ../..
+      dockerfile: apps/gateway/Dockerfile
+    environment:
+      PLATFORM_API_URL: http://platform-api:8000
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-change-this-internal-token}
+      NATS_URL: nats://nats:4222
+      PORT: "8080"
+      # pg 直连管道环境变量：DATABASE_URL 设置后启用 10 步管道 Go 实现，
+      # 否则退回 Python relay 后端。KEY_PEPPER 必须与 platform-api 一致。
+      DATABASE_URL: postgresql://${POSTGRES_USER:-workama}:${POSTGRES_PASSWORD:-workama_dev}@postgres:5432/${POSTGRES_DB:-workama}
+      KEY_PEPPER: ${KEY_PEPPER:-change-this-key-pepper}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=}
+      REDIS_URL: redis://redis:6379/0
+      WORKAMA_RESPONSES_STORE: /var/lib/workama/responses.json
+      WORKAMA_RESPONSES_TTL: ${WORKAMA_RESPONSES_TTL:-24h}
+      LLM_STAGING_PROVIDER: ${LLM_STAGING_PROVIDER:-}
+      LLM_STAGING_API_KEY: ${LLM_STAGING_API_KEY:-}
+      LLM_STAGING_BASE_URL: ${LLM_STAGING_BASE_URL:-}
+      LLM_STAGING_MODEL: ${LLM_STAGING_MODEL:-}
+      OTEL_ENABLED: ${OTEL_ENABLED:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    volumes:
+      - workama-gateway-data:/var/lib/workama
+    ports:
+      - "${GATEWAY_PORT:-20202}:8080"
+    depends_on:
+      platform-api:
+        condition: service_healthy
+      platform-worker:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      otel-collector:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rag-worker:
+    build:
+      context: ../..
+      dockerfile: apps/platform-api/Dockerfile
+    command: ["python", "-m", "workama_platform.rag_worker"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-workama}:${POSTGRES_PASSWORD:-workama_dev}@postgres:5432/${POSTGRES_DB:-workama}
+      REDIS_URL: redis://redis:6379/0
+      NATS_URL: nats://nats:4222
+      JWT_SECRET: ${JWT_SECRET:-change-this-jwt-secret}
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:-}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:-}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-change-this-internal-token}
+      KEY_PEPPER: ${KEY_PEPPER:-change-this-key-pepper}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-workama}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-workama_minio}
+      GATEWAY_URL: http://gateway:8080
+      OTEL_ENABLED: ${OTEL_ENABLED:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      postgres:
+        condition: service_healthy
+      gateway:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      otel-collector:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/workama-rag-worker.heartbeat && test $$(($$(date +%s) - $$(stat -c %Y /tmp/workama-rag-worker.heartbeat))) -lt 30"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  agent-server:
+    build:
+      context: ../..
+      dockerfile: apps/agent-server/Dockerfile
+    volumes:
+      # Mount local tests directory so new/edited test files are available
+      # inside the container without rebuilding the image or `docker cp`.
+      # Read-only: tests are not runtime artifacts (uvicorn runs from src).
+      - ../../apps/agent-server/tests:/app/tests:ro
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-workama}:${POSTGRES_PASSWORD:-workama_dev}@postgres:5432/${POSTGRES_DB:-workama}
+      REDIS_URL: redis://redis:6379/0
+      GATEWAY_URL: http://gateway:8080
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-change-this-internal-token}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:20204,http://localhost:20205,http://localhost:3000,http://web:3000,http://miniapp:80}
+      OTEL_ENABLED: ${OTEL_ENABLED:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      SANDBOX_FLEET_URL: http://sandbox-fleet:8002
+      PLATFORM_API_URL: http://platform-api:8000
+    ports:
+      - "${AGENT_PORT:-20201}:8001"
+    depends_on:
+      gateway:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      otel-collector:
+        condition: service_healthy
+      sandbox-fleet:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/healthz')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  sandbox-agentd:
+    image: workama-sandbox-agentd:local
+    build:
+      context: ../..
+      dockerfile: apps/sandbox-agentd/Dockerfile
+    read_only: true
+    network_mode: none
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 0.25
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+
+  sandbox-fleet:
+    build:
+      context: ../..
+      dockerfile: apps/sandbox-fleet/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-workama}:${POSTGRES_PASSWORD:-workama_dev}@postgres:5432/${POSTGRES_DB:-workama}
+      NATS_URL: nats://nats:4222
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-change-this-internal-token}
+      SANDBOX_IMAGE: workama-sandbox-agentd:local
+      SANDBOX_PROVIDER: ${SANDBOX_PROVIDER:-docker}
+      SANDBOX_RUNTIME: ${SANDBOX_RUNTIME:-runsc}
+      SANDBOX_FIRECRACKER_RUNTIME: ${SANDBOX_FIRECRACKER_RUNTIME:-kata-fc}
+      SANDBOX_FIRECRACKER_BINARY: ${SANDBOX_FIRECRACKER_BINARY:-/usr/local/bin/firecracker}
+      SANDBOX_FIRECRACKER_KERNEL_IMAGE: ${SANDBOX_FIRECRACKER_KERNEL_IMAGE:-}
+      SANDBOX_FIRECRACKER_ROOTFS_IMAGE: ${SANDBOX_FIRECRACKER_ROOTFS_IMAGE:-}
+      SANDBOX_FIRECRACKER_SOCKET_DIR: ${SANDBOX_FIRECRACKER_SOCKET_DIR:-/run/workama/firecracker}
+      SANDBOX_FIRECRACKER_KVM_PATH: ${SANDBOX_FIRECRACKER_KVM_PATH:-/dev/kvm}
+      SANDBOX_REQUIRE_GVISOR: ${SANDBOX_REQUIRE_GVISOR:-false}
+      # Local dev keeps SANDBOX_REQUIRE_MICROVM=false so Docker Desktop's runc
+      # runtime keeps the sandbox-fleet healthy. Production MUST set
+      # SANDBOX_REQUIRE_MICROVM=true (and run the fleet container under the
+      # runsc/gVisor runtime); otherwise /healthz fails closed with 503 and the
+      # fleet refuses to allocate sandboxes. See apps/sandbox-fleet/src/workama_sandbox/main.py
+      # enforce_strict_microvm() for the fail-closed contract.
+      SANDBOX_REQUIRE_MICROVM: ${SANDBOX_REQUIRE_MICROVM:-false}
+      SANDBOX_IDLE_SECONDS: ${SANDBOX_IDLE_SECONDS:-900}
+      SANDBOX_TTL_SECONDS: ${SANDBOX_TTL_SECONDS:-86400}
+      SANDBOX_PREWARM_SIZE: ${SANDBOX_PREWARM_SIZE:-2}
+      SANDBOX_MAX_TOTAL: ${SANDBOX_MAX_TOTAL:-50}
+      SANDBOX_MAX_PER_WORKSPACE: ${SANDBOX_MAX_PER_WORKSPACE:-20}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-workama}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-workama_minio}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "${SANDBOX_FLEET_PORT:-20203}:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      sandbox-agentd:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/healthz')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_PLATFORM_API_URL: ${VITE_PLATFORM_API_URL:-http://localhost:20200}
+        VITE_AGENT_WS_URL: ${VITE_AGENT_WS_URL:-ws://localhost:20201}
+        VITE_GRAFANA_URL: ${VITE_GRAFANA_URL:-http://localhost:20230/d/workama-overview/workama-platform-overview?orgId=1&kiosk=1}
+    volumes:
+      # Mount test files into the container so they survive restarts and
+      # auto-sync with the host without `docker cp`. All mounts are read-only
+      # and only cover test files — the built dist/ runtime artifact is untouched.
+      - ../../apps/web/tests:/app/apps/web/tests:ro
+      - ../../apps/web/src/ui.spec.tsx:/app/apps/web/src/ui.spec.tsx:ro
+      - ../../apps/mobile/src/App.test.tsx:/app/apps/mobile/src/App.test.tsx:ro
+      - ../../apps/mobile/src/App.tsx:/app/apps/mobile/src/App.tsx:ro
+      - ../../apps/mobile/src/main.tsx:/app/apps/mobile/src/main.tsx:ro
+      - ../../apps/mobile/src/styles.css:/app/apps/mobile/src/styles.css:ro
+      - ../../apps/mobile/public/sw.js:/app/apps/mobile/public/sw.js:ro
+      - ../../apps/mobile/e2e:/app/apps/mobile/e2e:ro
+      - ../../apps/mobile/playwright.config.ts:/app/apps/mobile/playwright.config.ts:ro
+      - ../../apps/mobile/vite.config.ts:/app/apps/mobile/vite.config.ts:ro
+      - ../../apps/mobile/scripts/docker-test-pwa.sh:/app/apps/mobile/scripts/docker-test-pwa.sh:ro
+      - ../../apps/share/src/ShareApp.test.tsx:/app/apps/share/src/ShareApp.test.tsx:ro
+      - ../../packages/event-renderer/src/index.test.ts:/app/packages/event-renderer/src/index.test.ts:ro
+    ports:
+      - "${WEB_PORT:-20204}:3000"
+    depends_on:
+      platform-api:
+        condition: service_healthy
+      agent-server:
+        condition: service_healthy
+
+  miniapp:
+    build:
+      context: ../..
+      dockerfile: apps/miniapp/Dockerfile
+      args:
+        VITE_PLATFORM_API_URL: ${VITE_PLATFORM_API_URL:-http://localhost:20200}
+    ports:
+      - "${MINIAPP_PORT:-20205}:80"
+    depends_on:
+      platform-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  workama-postgres:
+  workama-minio:
+  workama-prometheus:
+  workama-grafana:
+  workama-gateway-data:

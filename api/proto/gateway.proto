@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package workama.gateway.v1;
+
+service GatewayService {
+  rpc Invoke(InvokeRequest) returns (InvokeResponse);
+}
+
+message InvokeRequest {
+  string workspace_id = 1;
+  string model = 2;
+  bytes openai_request_json = 3;
+}
+
+message InvokeResponse {
+  string request_id = 1;
+  bytes openai_response_json = 2;
+}

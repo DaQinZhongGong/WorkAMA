@@ -1,0 +1,14 @@
+apiVersion: v2
+name: workama
+description: WorkAMA AI workspace platform and local infrastructure dependencies
+type: application
+version: 0.7.0
+appVersion: "v7.142"
+keywords:
+  - ai
+  - llm
+  - agent
+  - workama
+maintainers:
+  - name: WorkAMA DevOps
+    email: devops@workama.local

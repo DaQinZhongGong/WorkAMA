@@ -1,0 +1,23 @@
+{{- $root := . -}}
+{{- range $name, $service := .Values.appServices }}
+{{- if $service.service }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "workama.fullname" $root }}-{{ $name }}
+  labels:
+    {{- include "workama.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: {{ $root.Release.Name }}
+    app.kubernetes.io/component: {{ $name }}
+  ports:
+    - name: http
+      port: {{ $service.port }}
+      targetPort: http
+      protocol: TCP
+---
+{{- end }}
+{{- end }}

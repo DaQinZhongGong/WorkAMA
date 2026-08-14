@@ -1,0 +1,6 @@
+﻿{
+    "status":  "passed",
+    "reference":  "workama-platform-api:latest",
+    "digest":  "sha256:fdd16ac5eee46838d2608aae77e19528174f4dff9488649d357303dab27193b7",
+    "checked_at":  "2026-07-21T03:53:45.6121705+00:00"
+}

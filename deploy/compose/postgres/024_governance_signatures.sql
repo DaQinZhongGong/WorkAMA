@@ -1,0 +1,7 @@
+ALTER TABLE sec_siem_delivery ADD COLUMN IF NOT EXISTS signature TEXT;
+
+ALTER TABLE pf_a2a_task ADD COLUMN IF NOT EXISTS signature TEXT;
+ALTER TABLE pf_a2a_task ADD COLUMN IF NOT EXISTS nonce TEXT;
+ALTER TABLE pf_a2a_task ADD COLUMN IF NOT EXISTS signed_at TIMESTAMPTZ;
+ALTER TABLE pf_a2a_task ADD COLUMN IF NOT EXISTS signature_verified BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pf_a2a_task_card_nonce ON pf_a2a_task(card_id,nonce) WHERE nonce IS NOT NULL;

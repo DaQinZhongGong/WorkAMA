@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://workama.dev/schemas/community-package-manifest.v1.json",
+  "title": "WorkAMA community package manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "package_name",
+    "package_type",
+    "release_channel",
+    "generated_at",
+    "package_directory",
+    "file_count",
+    "inventory_digest",
+    "files",
+    "local_evidence",
+    "sbom",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": { "const": "workama.community.package-manifest.v1" },
+    "package_name": { "const": "workama-community" },
+    "package_type": { "const": "source" },
+    "release_channel": { "const": "community" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "package_directory": { "type": "string", "pattern": "^[^/\\\\]+$" },
+    "file_count": { "type": "integer", "minimum": 1 },
+    "inventory_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "size", "sha256"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^(?!/)(?!.*(^|[/\\\\])\\.\\.([/\\\\]|$)).+$" },
+          "size": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "local_evidence": { "$ref": "#/$defs/localEvidence" },
+    "sbom": {
+      "type": "object",
+      "required": ["status", "is_sbom", "production_attestation"],
+      "properties": {
+        "status": { "type": "string" },
+        "file": { "type": ["string", "null"] },
+        "is_sbom": { "type": "boolean" },
+        "tool": { "type": ["string", "null"] },
+        "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "production_attestation": { "const": false }
+      },
+      "additionalProperties": true
+    },
+    "provenance": { "$ref": "#/$defs/localEvidence" }
+  },
+  "$defs": {
+    "localEvidence": {
+      "type": "object",
+      "required": ["signed", "signature_status", "production_attestation"],
+      "properties": {
+        "signed": { "const": false },
+        "signature_status": { "const": "not-signed" },
+        "production_attestation": { "const": false }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
