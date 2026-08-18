@@ -347,3 +347,27 @@ func TestToken_EmptyAndEdgeCases(t *testing.T) {
 		}
 	})
 }
+
+func TestEqualSecret(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name      string
+		provided  string
+		expected  string
+		wantMatch bool
+	}{
+		{name: "exact match", provided: "secret-alpha", expected: "secret-alpha", wantMatch: true},
+		{name: "mismatch", provided: "secret-alpha", expected: "secret-beta", wantMatch: false},
+		{name: "empty provided", provided: "", expected: "secret-alpha", wantMatch: false},
+		{name: "empty expected", provided: "secret-alpha", expected: "", wantMatch: false},
+		{name: "both empty never match", provided: "", expected: "", wantMatch: false},
+		{name: "case sensitive", provided: "Secret", expected: "secret", wantMatch: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := token.EqualSecret(tc.provided, tc.expected); got != tc.wantMatch {
+				t.Fatalf("EqualSecret(%q, %q) = %v, want %v", tc.provided, tc.expected, got, tc.wantMatch)
+			}
+		})
+	}
+}

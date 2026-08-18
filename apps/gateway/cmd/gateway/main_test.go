@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -38,7 +39,7 @@ func TestEnvReturnsFallbackForVariousValues(t *testing.T) {
 		{name: "empty fallback", fallback: ""},
 		{name: "url fallback", fallback: "http://localhost:8000"},
 		{name: "port fallback", fallback: "8080"},
-		{name: "token fallback", fallback: "change-this-internal-token"},
+		{name: "token fallback", fallback: "unused-generic-fallback"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -47,5 +48,53 @@ func TestEnvReturnsFallbackForVariousValues(t *testing.T) {
 				t.Fatalf("env() = %q, want %q", got, test.fallback)
 			}
 		})
+	}
+}
+
+func TestResolveInternalTokenRequiresEnv(t *testing.T) {
+	t.Setenv("INTERNAL_TOKEN", "")
+	t.Setenv("WORKAMA_ENV", "development")
+	if _, err := resolveInternalToken(); err == nil || !strings.Contains(err.Error(), "required") {
+		t.Fatalf("expected required error, got %v", err)
+	}
+}
+
+func TestResolveInternalTokenRejectsPlaceholder(t *testing.T) {
+	t.Setenv("INTERNAL_TOKEN", "change-this-internal-token")
+	t.Setenv("WORKAMA_ENV", "development")
+	if _, err := resolveInternalToken(); err == nil || !strings.Contains(err.Error(), "placeholder") {
+		t.Fatalf("expected placeholder error, got %v", err)
+	}
+}
+
+func TestResolveInternalTokenAllowsDevDefaultOutsideProduction(t *testing.T) {
+	t.Setenv("INTERNAL_TOKEN", "workama-dev-internal-token-2026")
+	t.Setenv("WORKAMA_ENV", "development")
+	got, err := resolveInternalToken()
+	if err != nil {
+		t.Fatalf("dev default should be accepted outside production: %v", err)
+	}
+	if got != "workama-dev-internal-token-2026" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestResolveInternalTokenRejectsDevDefaultInProduction(t *testing.T) {
+	t.Setenv("INTERNAL_TOKEN", "workama-dev-internal-token-2026")
+	t.Setenv("WORKAMA_ENV", "production")
+	if _, err := resolveInternalToken(); err == nil || !strings.Contains(err.Error(), "development default") {
+		t.Fatalf("expected production rejection, got %v", err)
+	}
+}
+
+func TestResolveInternalTokenAcceptsUniqueSecret(t *testing.T) {
+	t.Setenv("INTERNAL_TOKEN", "unique-prod-internal-token-32bytes-min")
+	t.Setenv("WORKAMA_ENV", "production")
+	got, err := resolveInternalToken()
+	if err != nil {
+		t.Fatalf("unique secret should be accepted: %v", err)
+	}
+	if got != "unique-prod-internal-token-32bytes-min" {
+		t.Fatalf("got %q", got)
 	}
 }

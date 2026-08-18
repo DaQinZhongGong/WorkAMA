@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"time"
@@ -83,4 +84,14 @@ func HashKey(apiKey, pepper string) string {
 	mac := hmac.New(sha256.New, []byte(pepper))
 	_, _ = mac.Write([]byte(apiKey))
 	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// EqualSecret compares two secrets in constant time.
+// Empty values never match — this prevents an unset INTERNAL_TOKEN from
+// authenticating requests that also omit X-Internal-Token.
+func EqualSecret(provided, expected string) bool {
+	if provided == "" || expected == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) == 1
 }

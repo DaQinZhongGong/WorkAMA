@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/workama/workama/apps/gateway/internal/metering"
@@ -31,7 +33,11 @@ func main() {
 		"org_id", "", "workspace_id", "",
 	)
 	platformURL := env("PLATFORM_API_URL", "http://localhost:8000")
-	internalToken := env("INTERNAL_TOKEN", "change-this-internal-token")
+	internalToken, err := resolveInternalToken()
+	if err != nil {
+		logger.Error("internal token configuration rejected", "error", err)
+		os.Exit(1)
+	}
 	natsURL := env("NATS_URL", "nats://localhost:4222")
 	port := env("PORT", "8080")
 
@@ -44,7 +50,7 @@ func main() {
 
 	// 尝试初始化 pg 直连管道（10 步管道的 Go 实现）。
 	// DATABASE_URL 未设置或 pg 连接失败时退回 Python relay 后端。
-	wireDirectPipeline(service, logger)
+	wireDirectPipeline(service, logger, internalToken)
 
 	httpServer := &http.Server{
 		Addr:              ":" + port,
@@ -68,7 +74,7 @@ func main() {
 // AuthMiddleware 负责 ①认证；ChatHandler 内部完成 ②授权/⑤输入审查/⑨输出审查；
 // RateLimitMiddleware 负责 ③限流；BudgetMiddleware 负责 ④预算；
 // ChatHandler 完成 ⑥模型映射 → ⑦路由 → ⑧转发 → ⑩计量。
-func wireDirectPipeline(service *server.Server, logger *slog.Logger) {
+func wireDirectPipeline(service *server.Server, logger *slog.Logger, internalToken string) {
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
 		logger.Info("DATABASE_URL not set, using Python relay backend for chat completions")
@@ -89,7 +95,7 @@ func wireDirectPipeline(service *server.Server, logger *slog.Logger) {
 	router := routing.NewWeightedRouter(nil)
 
 	// 中间件：①认证 + ③限流 + ④预算 + ⑩计量
-	authMW := middleware.NewAuth(pgGateway, env("INTERNAL_TOKEN", "change-this-internal-token")) // pgGateway 实现 token.Verifier；INTERNAL_TOKEN 支持 X-Internal-Token 内部调用
+	authMW := middleware.NewAuth(pgGateway, internalToken) // pgGateway 实现 token.Verifier；INTERNAL_TOKEN 仅从环境注入
 	limiter := server.NewLimiter()
 	rateLimitMW := middleware.NewRateLimit(limiter)
 	budgetMW := middleware.NewBudget(nil) // ④预算：Balance=nil 视为放行（后续接入 bill_account）
@@ -144,4 +150,46 @@ func env(name, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+// knownPlaceholderInternalTokens are documented fill-me values. They must
+// never be accepted as a live INTERNAL_TOKEN.
+var knownPlaceholderInternalTokens = map[string]struct{}{
+	"change-this-internal-token": {},
+}
+
+// knownDevInternalTokens are documented local/dev defaults. Accepted only
+// when WORKAMA_ENV is not production/prod.
+var knownDevInternalTokens = map[string]struct{}{
+	"workama-dev-internal-token-2026":                       {},
+	"workama-local-internal-token-change-before-production": {},
+}
+
+func isProductionEnv(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "production", "prod":
+		return true
+	default:
+		return false
+	}
+}
+
+// resolveInternalToken reads INTERNAL_TOKEN from the process environment.
+// There is no source-code fallback: an unset, empty, or documented
+// placeholder token rejects startup. Known development defaults are
+// allowed only outside production.
+func resolveInternalToken() (string, error) {
+	value := strings.TrimSpace(os.Getenv("INTERNAL_TOKEN"))
+	if value == "" {
+		return "", errors.New("INTERNAL_TOKEN is required and must be injected via environment")
+	}
+	if _, ok := knownPlaceholderInternalTokens[value]; ok {
+		return "", errors.New("INTERNAL_TOKEN is a documented placeholder; set a unique secret")
+	}
+	if isProductionEnv(os.Getenv("WORKAMA_ENV")) {
+		if _, ok := knownDevInternalTokens[value]; ok {
+			return "", errors.New("INTERNAL_TOKEN is a known development default and is rejected when WORKAMA_ENV=production")
+		}
+	}
+	return value, nil
 }

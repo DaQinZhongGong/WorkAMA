@@ -24,6 +24,7 @@ import (
 	"github.com/workama/workama/apps/gateway/internal/metering"
 	"github.com/workama/workama/apps/gateway/internal/observability"
 	"github.com/workama/workama/apps/gateway/internal/relay"
+	"github.com/workama/workama/apps/gateway/internal/token"
 	commonobservability "github.com/workama/workama/packages/go-common/observability"
 )
 
@@ -172,7 +173,7 @@ func (s *Server) authenticate(r *http.Request, model string) (relay.Route, error
 		apiKey = strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
 	}
 	workspaceID := ""
-	if apiKey == "" && r.Header.Get("X-Internal-Token") == s.InternalToken {
+	if apiKey == "" && token.EqualSecret(r.Header.Get("X-Internal-Token"), s.InternalToken) {
 		workspaceID = r.Header.Get("X-Workspace-ID")
 	}
 	return s.Platform.Resolve(r.Context(), apiKey, workspaceID, model)

@@ -61,7 +61,7 @@ func (m *AuthMiddleware) Wrap(next http.Handler) http.Handler {
 		if apiKey == "" {
 			// v7.265: 内部调用方（agent-server 等）用 X-Internal-Token + X-Workspace-ID。
 			internal := r.Header.Get("X-Internal-Token")
-			if internal == "" || m.InternalToken == "" || !strings.EqualFold(internal, m.InternalToken) {
+			if !token.EqualSecret(internal, m.InternalToken) {
 				httperr.Write(w, httperr.CodeUnauthorized, "Missing Authorization Bearer token")
 				return
 			}
