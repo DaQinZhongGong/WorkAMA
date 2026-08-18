@@ -20,9 +20,11 @@
 # /WorkAMA-Docs/
 
 # Runtime and local configuration
+# .env / .env.dev / .env.local 等一律不入仓；仅模板可跟踪。
 .env
-!.env.*
+.env.*
 !.env.example
+!.env.production.template
 node_modules/
 .pnpm-store/
 dist/
