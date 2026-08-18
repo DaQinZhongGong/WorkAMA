@@ -350,6 +350,24 @@ def _request_capability(request: Request) -> str:
     return f"{domain}:{'read' if request.method in {'GET', 'HEAD', 'OPTIONS'} else 'write'}"
 
 
+# ---------------------------------------------------------------------------
+# 鉴权 actor 读穿透缓存（尾延迟收口：get_actor 原每次请求命中 DB，是 P99 主因）
+# ---------------------------------------------------------------------------
+# best-effort：缓存命中/写入异常一律降级为直连 DB，不改变正确性。
+# workama_env == "test" 时关闭，避免单测因共享 token 键互相污染。
+_ACTOR_CACHE_TTL = 60.0
+_ACTOR_CACHE_ENABLED = settings.workama_env.lower() != "test"
+
+# 进程内 L1（per-worker）：热读跳过 Redis 跨容器 RTT；token 绑定、TTL 兜底，无需失效。
+from workama_platform.modules.cache import LocalTTLCache
+
+_ACTOR_LOCAL = LocalTTLCache(ttl=_ACTOR_CACHE_TTL, maxsize=2048)
+
+
+def _actor_cache_key(raw: str) -> str:
+    return f"workama:actor:{hash_secret(raw)[:24]}"
+
+
 async def get_actor(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
@@ -412,6 +430,38 @@ async def get_actor(
         org_id_var.set(actor["org_id"]); workspace_id_var.set(actor["workspace_id"])
         return Actor(**actor, actor_type="api_key", capabilities=scopes, auth_strength=1)
     payload = await decode_token_cached(raw)
+    # L1 进程内缓存（最快路径）：命中即返回，跳过 Redis 跨容器 RTT 与 DB。
+    if _ACTOR_CACHE_ENABLED:
+        try:
+            _l1 = _ACTOR_LOCAL.get(_actor_cache_key(raw))
+            if _l1 is not None:
+                return _l1
+        except Exception:
+            pass
+    # L2 redis 缓存：命中跳过 per-request DB 查询（P99 主因），并回填 L1。
+    if _ACTOR_CACHE_ENABLED:
+        try:
+            _cached = await cache_get(_actor_cache_key(raw))
+            if _cached:
+                _d = json.loads(_cached)
+                _actor = Actor(
+                    user_id=_d["user_id"],
+                    workspace_id=_d["workspace_id"],
+                    org_id=_d["org_id"],
+                    role=_d["role"],
+                    email=_d["email"],
+                    display_name=_d["display_name"],
+                    onboarding_completed=_d["onboarding_completed"],
+                    capabilities=tuple(_d["capabilities"]),
+                    auth_strength=_d["auth_strength"],
+                )
+                try:
+                    _ACTOR_LOCAL.set(_actor_cache_key(raw), _actor)
+                except Exception:
+                    pass
+                return _actor
+        except Exception:
+            pass
     async with pool.connection() as conn:
         row = await conn.execute(
             """
@@ -428,7 +478,37 @@ async def get_actor(
         raise HTTPException(status_code=401, detail="Account or workspace unavailable")
     org_id_var.set(actor["org_id"])
     workspace_id_var.set(actor["workspace_id"])
-    return Actor(**actor, capabilities=ROLE_CAPABILITIES.get(actor["role"], ()), auth_strength=max(1, min(int(payload.get("auth_strength", 1)), 2)))
+    built = Actor(
+        **actor,
+        capabilities=ROLE_CAPABILITIES.get(actor["role"], ()),
+        auth_strength=max(1, min(int(payload.get("auth_strength", 1)), 2)),
+    )
+    if _ACTOR_CACHE_ENABLED:
+        try:
+            _ACTOR_LOCAL.set(_actor_cache_key(raw), built)
+        except Exception:
+            pass
+        try:
+            await cache_set(
+                _actor_cache_key(raw),
+                json_dumps(
+                    {
+                        "user_id": built.user_id,
+                        "workspace_id": built.workspace_id,
+                        "org_id": built.org_id,
+                        "role": built.role,
+                        "email": built.email,
+                        "display_name": built.display_name,
+                        "onboarding_completed": built.onboarding_completed,
+                        "capabilities": list(built.capabilities),
+                        "auth_strength": built.auth_strength,
+                    }
+                ),
+                _ACTOR_CACHE_TTL,
+            )
+        except Exception:
+            pass
+    return built
 
 
 def require_roles(*roles: str):

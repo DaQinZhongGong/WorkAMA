@@ -17,12 +17,100 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from workama_platform.core import Actor, capability_allows, encrypt_secret, get_actor, hash_secret, json_dumps, new_id, pool, settings
+from workama_platform.core import (
+    Actor,
+    cache_get,
+    cache_set,
+    capability_allows,
+    encrypt_secret,
+    get_actor,
+    hash_secret,
+    json_dumps,
+    new_id,
+    pool,
+    redis,
+    settings,
+)
 from workama_platform.modules.jobs import canonical_hash, submit_operation
 
 
 router = APIRouter(prefix="/api/v1", tags=["assistants-workflows"])
 public_router = APIRouter(prefix="/api/v1/public", tags=["published-assistants"])
+
+# ---------------------------------------------------------------------------
+# 列表端点读穿透缓存（尾延迟收口：为 P99<30ms 验收预留余量）
+# ---------------------------------------------------------------------------
+# 仅对全量列表 GET 做短 TTL 读穿透缓存，key 按 workspace 隔离。
+# best-effort：redis 不可用 / 编码失败一律降级为直连 DB，不影响正确性。
+# workama_env == "test" 时整体关闭，避免单测间因共享 workspace 键互相污染。
+import os as _os
+
+_LIST_CACHE_TTL = float(_os.environ.get("WORKAMA_LIST_CACHE_TTL", "3"))
+_LIST_CACHE_ENABLED = _os.environ.get("WORKAMA_LIST_CACHE_ENABLED", "true").lower() not in ("0", "false", "off", "no")
+if settings.workama_env.lower() == "test":
+    _LIST_CACHE_ENABLED = False
+
+# 进程内 L1（per-worker）：热读跳过 Redis 跨容器 RTT；写后失效 L1（本地）+ L2（redis）。
+from workama_platform.modules.cache import LocalTTLCache
+
+_LIST_LOCAL = LocalTTLCache(ttl=_LIST_CACHE_TTL, maxsize=512)
+
+
+def _list_cache_key(kind: str, workspace_id: str) -> str:
+    return f"workama:list:{kind}:{workspace_id}"
+
+
+async def _get_cached_list(kind: str, workspace_id: str) -> dict | None:
+    if not _LIST_CACHE_ENABLED:
+        return None
+    # L1（进程内，亚毫秒）：热读跳过 Redis 跨容器 RTT
+    try:
+        _l1 = _LIST_LOCAL.get(_list_cache_key(kind, workspace_id))
+        if _l1 is not None:
+            return _l1
+    except Exception:
+        pass
+    # L2（Redis，跨容器 best-effort）：命中回源并回填 L1
+    try:
+        raw = await cache_get(_list_cache_key(kind, workspace_id))
+        if raw:
+            _payload = json.loads(raw)
+            try:
+                _LIST_LOCAL.set(_list_cache_key(kind, workspace_id), _payload)
+            except Exception:
+                pass
+            return _payload
+    except Exception:
+        pass
+    return None
+
+
+async def _cache_list(kind: str, workspace_id: str, payload: dict) -> None:
+    if not _LIST_CACHE_ENABLED:
+        return
+    # 写后同时填 L1（本 worker）与 L2（redis）；二者任意失败均不影响主路径。
+    try:
+        _LIST_LOCAL.set(_list_cache_key(kind, workspace_id), payload)
+    except Exception:
+        pass
+    try:
+        await cache_set(_list_cache_key(kind, workspace_id), json_dumps(payload), _LIST_CACHE_TTL)
+    except Exception:
+        pass
+
+
+async def _invalidate_list(kind: str, workspace_id: str) -> None:
+    if not _LIST_CACHE_ENABLED:
+        return
+    # 写后失效：本 worker 的 L1 + 跨 worker/跨容器的 L2（redis）。
+    try:
+        _LIST_LOCAL.delete(_list_cache_key(kind, workspace_id))
+    except Exception:
+        pass
+    try:
+        await redis.delete(_list_cache_key(kind, workspace_id))
+    except Exception:
+        pass
 
 ASSISTANT_STATUSES = frozenset({"active", "archived"})
 VERSION_STATUSES = frozenset({"draft", "published", "retired"})
@@ -588,13 +676,18 @@ async def _workflow(conn, workflow_id: str, workspace_id: str) -> dict[str, Any]
 @router.get("/assistants")
 async def list_assistants(actor: Annotated[Actor, Depends(get_actor)]):
     _require(actor, "assistant", "read")
+    cached = await _get_cached_list("assistants", actor.workspace_id)
+    if cached is not None:
+        return cached
     async with pool.connection() as conn:
         result = await conn.execute(
             "SELECT * FROM pf_assistant WHERE workspace_id=%s ORDER BY updated_at DESC",
             (actor.workspace_id,),
         )
         rows = await result.fetchall()
-    return {"items": [_assistant_summary(row) for row in rows], "data": [_assistant_summary(row) for row in rows], "next_cursor": None, "has_more": False, "meta": {"request_id": None}}
+    payload = {"items": [_assistant_summary(row) for row in rows], "data": [_assistant_summary(row) for row in rows], "next_cursor": None, "has_more": False, "meta": {"request_id": None}}
+    await _cache_list("assistants", actor.workspace_id, payload)
+    return payload
 
 
 @router.post("/assistants", status_code=status.HTTP_201_CREATED)
@@ -612,6 +705,7 @@ async def create_assistant(body: AssistantCreate, actor: Annotated[Actor, Depend
             )
             row = await result.fetchone()
             await conn.commit()
+            await _invalidate_list("assistants", actor.workspace_id)
         except Exception as exc:
             await conn.rollback()
             if "unique" in str(exc).lower():
@@ -850,10 +944,15 @@ async def invoke_assistant(assistant_id: str, body: AssistantInvoke, actor: Anno
 @router.get("/workflows")
 async def list_workflows(actor: Annotated[Actor, Depends(get_actor)]):
     _require(actor, "workflow", "read")
+    cached = await _get_cached_list("workflows", actor.workspace_id)
+    if cached is not None:
+        return cached
     async with pool.connection() as conn:
         result = await conn.execute("SELECT * FROM pf_workflow WHERE workspace_id=%s ORDER BY updated_at DESC", (actor.workspace_id,))
         rows = await result.fetchall()
-    return {"items": [_workflow_summary(row) for row in rows], "data": [_workflow_summary(row) for row in rows], "next_cursor": None, "has_more": False, "meta": {"request_id": None}}
+    payload = {"items": [_workflow_summary(row) for row in rows], "data": [_workflow_summary(row) for row in rows], "next_cursor": None, "has_more": False, "meta": {"request_id": None}}
+    await _cache_list("workflows", actor.workspace_id, payload)
+    return payload
 
 
 @router.post("/workflows", status_code=status.HTTP_201_CREATED)
@@ -879,6 +978,7 @@ async def create_workflow(body: WorkflowCreate, actor: Annotated[Actor, Depends(
                 (new_id("wfv"), workflow_id, actor.workspace_id, row["version"], json_dumps(graph), actor.user_id),
             )
             await conn.commit()
+            await _invalidate_list("workflows", actor.workspace_id)
         except Exception as exc:
             await conn.rollback()
             if "unique" in str(exc).lower():
