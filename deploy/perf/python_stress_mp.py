@@ -40,8 +40,9 @@ EMAIL = os.environ.get("STRESS_EMAIL", "tester@workama.example.com")
 PASSWORD = os.environ.get("STRESS_PASSWORD", "WorkAMA-Test-2026!")
 TIMEOUT = 10
 
-# 网关内部调用凭证（与 compose INTERNAL_TOKEN / platform-api JWT 的 ws 声明一致）
-INTERNAL_TOKEN = os.environ.get("STRESS_INTERNAL_TOKEN", "workama-dev-internal-token-2026")
+# 网关内部调用凭证：优先 STRESS_INTERNAL_TOKEN，否则继承容器 INTERNAL_TOKEN。
+# 不再硬编码仓库内的开发默认值——未注入时让请求 401，避免测到假成功。
+INTERNAL_TOKEN = os.environ.get("STRESS_INTERNAL_TOKEN") or os.environ.get("INTERNAL_TOKEN") or ""
 WORKSPACE_ID = os.environ.get("STRESS_WORKSPACE_ID", "wsp_01KXETQWY55XXWGK9DXR55N217")
 GW_HEADERS = {
     "X-Internal-Token": INTERNAL_TOKEN,
@@ -86,11 +87,13 @@ def req(path: str, token: str) -> tuple[int, float]:
     return raw_req("GET", path, headers)
 
 
-def worker(mode: str, token: str, dur: float, q: Queue) -> None:
+def worker(mode: str, token: str, dur: float, q: Queue, warmup: float = 0.0) -> None:
     """单进程单线程串行请求循环；无 GIL 竞争，测量即真实延迟。"""
     samples: list[float] = []
     errors = 0
-    end = time.perf_counter() + dur
+    start = time.perf_counter()
+    warm_until = start + max(0.0, warmup)
+    end = warm_until + dur
     while time.perf_counter() < end:
         if mode in ("healthz", "g_healthz"):
             s, d = raw_req("GET", "/healthz")
@@ -108,9 +111,11 @@ def worker(mode: str, token: str, dur: float, q: Queue) -> None:
             s, d = req("/api/v1/assistants", token)
         else:
             raise SystemExit(f"unknown mode: {mode}")
-        samples.append(d)
-        if s == 0 or s >= 400:
-            errors += 1
+        recording = time.perf_counter() >= warm_until
+        if recording:
+            samples.append(d)
+            if s == 0 or s >= 400:
+                errors += 1
         time.sleep(0.3)
     q.put((samples, errors))
 
@@ -134,7 +139,8 @@ def main() -> None:
         default="assistants",
     )
     ap.add_argument("--vus", type=int, default=20, help="并发进程数（每进程 1 线程）")
-    ap.add_argument("--dur", type=float, default=120.0, help="稳态时长（秒）")
+    ap.add_argument("--dur", type=float, default=120.0, help="稳态时长（秒，不含 warmup）")
+    ap.add_argument("--warmup", type=float, default=0.0, help="预热秒数（请求但不计入分位）")
     args = ap.parse_args()
 
     token = ""
@@ -145,7 +151,10 @@ def main() -> None:
             raise SystemExit(2)
 
     q: Queue = Queue()
-    procs = [Process(target=worker, args=(args.mode, token, args.dur, q)) for _ in range(args.vus)]
+    procs = [
+        Process(target=worker, args=(args.mode, token, args.dur, q, args.warmup))
+        for _ in range(args.vus)
+    ]
     for p in procs:
         p.start()
 

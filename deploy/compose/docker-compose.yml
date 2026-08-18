@@ -276,7 +276,11 @@ services:
       dockerfile: apps/gateway/Dockerfile
     environment:
       PLATFORM_API_URL: http://platform-api:8000
+      # Placeholder default is rejected at gateway startup. Set a unique
+      # INTERNAL_TOKEN in the stack env-file. Known dev defaults are
+      # rejected when WORKAMA_ENV=production|prod.
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:-change-this-internal-token}
+      WORKAMA_ENV: ${WORKAMA_ENV:-development}
       NATS_URL: nats://nats:4222
       PORT: "8080"
       # pg 直连管道环境变量：DATABASE_URL 设置后启用 10 步管道 Go 实现，
