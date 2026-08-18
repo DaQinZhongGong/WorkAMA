@@ -200,11 +200,18 @@ services:
       WORKAMA_MODERATION_MODEL_VERSION: ${WORKAMA_MODERATION_MODEL_VERSION:-unconfigured}
       WORKAMA_MODERATION_MODEL_ALLOWED_HOSTS: ${WORKAMA_MODERATION_MODEL_ALLOWED_HOSTS:-}
       WORKAMA_ENV: ${WORKAMA_ENV:-development}
+      # 限流阈值（每分钟每 token/每个 IP），压测/分级环境可调高以隔离平台延迟预算
+      RATE_LIMIT_LOGIN_PER_MIN: ${RATE_LIMIT_LOGIN_PER_MIN:-5}
+      RATE_LIMIT_SENSITIVE_PER_MIN: ${RATE_LIMIT_SENSITIVE_PER_MIN:-10}
+      RATE_LIMIT_DEFAULT_PER_MIN: ${RATE_LIMIT_DEFAULT_PER_MIN:-60}
       # 性能优化：DB 连接池规模（预热连接数 / 最大连接数），按并发负载调整
       DB_POOL_MIN_SIZE: ${DB_POOL_MIN_SIZE:-5}
       DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-20}
-      # 性能优化：uvicorn worker 数（适配多核，提升并发吞吐）
-      UVICORN_WORKERS: ${UVICORN_WORKERS:-2}
+      # 性能优化：Granian worker / runtime-thread 数（candidate, pending GA）。
+      # 跨容器压测：4 worker / 8 thread 为最优点（steady p99≈32ms、worst-case 尾尖≈55ms）；
+      # 单 worker 因 GIL 在 20 VU 下 p99 飙至 153ms，故默认多 worker。
+      GRANIAN_WORKERS: ${GRANIAN_WORKERS:-4}
+      GRANIAN_RUNTIME_THREADS: ${GRANIAN_RUNTIME_THREADS:-8}
     ports:
       - "${PLATFORM_API_PORT:-20200}:8000"
     depends_on:

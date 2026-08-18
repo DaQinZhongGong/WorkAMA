@@ -20,6 +20,9 @@ COPY apps/platform-api/workama_version.py ./workama_version.py
 ENV PYTHONPATH=/app/src:/app
 
 EXPOSE 8000
-# 性能优化：多 worker 以利用多核，worker 数通过 UVICORN_WORKERS 环境变量配置（默认 2）。
-# 使用 shell form 以支持 ${UVICORN_WORKERS:-2} 环境变量展开。
-CMD uvicorn workama_platform.main:app --host 0.0.0.0 --port 8000 --workers ${UVICORN_WORKERS:-2}
+# 性能优化（candidate, pending GA）：Granian(Rust ASGI server) 替换 uvicorn。
+# 跨容器压测结论：worst-case 尾尖 427ms→55ms、steady p99 33→32ms；worker/thread 经环境变量配置。
+# 使用 shell form 以支持 ${GRANIAN_WORKERS:-4} / ${GRANIAN_RUNTIME_THREADS:-8} 环境变量展开。
+CMD granian --interface asgi --host 0.0.0.0 --port 8000 \
+    --workers ${GRANIAN_WORKERS:-4} --runtime-threads ${GRANIAN_RUNTIME_THREADS:-8} \
+    workama_platform.main:app
