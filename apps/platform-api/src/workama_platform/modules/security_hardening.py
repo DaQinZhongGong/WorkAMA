@@ -312,7 +312,8 @@ async def csrf_protect(request: Request) -> None:
     path = request.url.path
     if path in _CSRF_EXEMPT_PATHS:
         return
-    if request.headers.get("x-internal-token"):
+    raw = request.headers.get("x-internal-token")
+    if _internal_token_matches(raw or "", settings.internal_token):
         return
     origin = _extract_request_origin(request)
     if not _origin_is_trusted(origin):
@@ -357,7 +358,7 @@ class SecurityHeadersMiddleware:
                 for name, value in SECURITY_HEADERS:
                     if name not in existing:
                         headers.append((name, value))
-                message = {**message, "headers": headers}
+                message["headers"] = headers
             await send(message)
 
         await self.app(scope, receive, send_wrapper)
@@ -416,6 +417,22 @@ def _scope_header(headers: list[tuple[bytes, bytes]], name: str) -> str:
     return ""
 
 
+def _internal_token_matches(provided: str, expected: str) -> bool:
+    """常量时间比对内部调用 token（``X-Internal-Token``）。
+
+    仅当 ``provided`` 与服务端 ``settings.internal_token`` 完全一致时才视为匹配。
+    任一为空、编码失败或字符集不兼容均判定为不匹配，避免伪造头绕过 CSRF / 限流。
+    使用 ``hmac.compare_digest`` 对 UTF-8 字节做比较，抵抗时序侧信道；非 ASCII
+    或异常输入被安全降级为不匹配，不会抛出 500。
+    """
+    if not provided or not expected:
+        return False
+    try:
+        return hmac.compare_digest(provided.encode("utf-8"), expected.encode("utf-8"))
+    except Exception:
+        return False
+
+
 def _rl_identifier(headers: list[tuple[bytes, bytes]], scope: dict[str, Any]) -> str:
     """速率限制标识：有 Bearer token 时按 token hash，否则按客户端 IP。"""
     auth = _scope_header(headers, "authorization")
@@ -469,7 +486,7 @@ class RateLimitMiddleware:
             return
 
         headers = scope.get("headers") or []
-        if _scope_header(headers, "x-internal-token"):
+        if _internal_token_matches(_scope_header(headers, "x-internal-token"), settings.internal_token):
             await self.app(scope, receive, send)
             return
 

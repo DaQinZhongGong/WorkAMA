@@ -567,15 +567,29 @@ class TestCSRFProtection:
 
     @pytest.mark.asyncio
     async def test_csrf_internal_token_exempt(self):
-        """Requests carrying ``X-Internal-Token`` bypass CSRF (platform-worker)."""
+        """Requests carrying the VALID ``X-Internal-Token`` bypass CSRF (platform-worker)."""
         app = _build_csrf_app()
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
             resp = await client.post(
-                "/api/v1/protected", headers={"X-Internal-Token": "worker-secret"}
+                "/api/v1/protected",
+                headers={"X-Internal-Token": settings.internal_token},
             )
         assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_csrf_internal_token_forged_403(self):
+        """A forged/empty ``X-Internal-Token`` must NOT bypass CSRF (security fix)."""
+        app = _build_csrf_app()
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(
+                "/api/v1/protected",
+                headers={"X-Internal-Token": "forged-token"},
+            )
+        assert resp.status_code == 403
 
     @pytest.mark.asyncio
     async def test_csrf_referer_fallback(self):
@@ -731,13 +745,32 @@ class TestRateLimitMiddleware:
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
             r1 = await client.get(
-                "/api/v1/test", headers={"X-Internal-Token": "worker"}
+                "/api/v1/test", headers={"X-Internal-Token": settings.internal_token}
             )
             r2 = await client.get(
-                "/api/v1/test", headers={"X-Internal-Token": "worker"}
+                "/api/v1/test", headers={"X-Internal-Token": settings.internal_token}
             )
         assert r1.status_code == 200
-        assert r2.status_code == 200  # internal token exempt
+        assert r2.status_code == 200  # valid internal token exempt
+        sh._reset_rate_limit_middleware()
+
+    @pytest.mark.asyncio
+    async def test_internal_token_forged_not_exempt(self, monkeypatch):
+        """A forged ``X-Internal-Token`` must NOT bypass rate limiting (security fix)."""
+        sh._reset_rate_limit_middleware()
+        monkeypatch.setattr(sh.settings, "rate_limit_default_per_min", 1)
+        app = _build_middleware_app(rate_limit=True, security_headers=False)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            r1 = await client.get(
+                "/api/v1/test", headers={"X-Internal-Token": "forged-token"}
+            )
+            r2 = await client.get(
+                "/api/v1/test", headers={"X-Internal-Token": "forged-token"}
+            )
+        assert r1.status_code == 200
+        assert r2.status_code == 429  # forged token falls through to rate limit
         sh._reset_rate_limit_middleware()
 
     @pytest.mark.asyncio
