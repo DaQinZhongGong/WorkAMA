@@ -633,3 +633,36 @@ docker run --rm --network=workama_default -v "${PWD}/deploy/perf/k6:/scripts" -w
 - 未改动任何服务端业务逻辑代码（仅重建镜像 + 扩展测量工具）。
 
 **验证状态**：跨容器网关压测 0 错误；冒烟 `gateway /healthz`/`/v1/models`/`/v1/chat/completions`（内部 token）均 200；platform-api 仍健康（限流 60/10/5）。本轮未改平台业务逻辑。GA 仍需人工签字。
+
+## 10.14 内部 token 去硬编码 + .env.dev 脱敏 + GIL-free 性能门禁（status=candidate）
+
+**背景**：§10.13 闭环后仍剩三类生产隐患——① `.env.dev` 被初始提交跟踪；② 网关 `INTERNAL_TOKEN` 在源码/compose 有已知占位符回退；③ 内部鉴权路径无单测、p99 无机器门禁。
+
+**本轮落地（candidate）**：
+
+1. **P0-2 `.env.dev` 脱敏**：`.gitignore` 改为忽略 `.env.*`，仅放行 `.env.example` / `.env.production.template`；`git rm --cached .env.dev`，工作区文件保留。
+2. **P0-3 网关内部 token 环境化**：`resolveInternalToken()` 取消源码 fallback。空值 / `change-this-internal-token` 一律拒启；`workama-dev-internal-token-2026` 等开发默认值仅在非 production 放行。比较改为 `token.EqualSecret` 常量时间，空==空不再命中。
+3. **P1-5 单测**：`auth_test.go` 覆盖正确 token / 错 token / 缺 workspace / 空配置 / 大小写敏感 / Bearer；`main_test.go` 覆盖 resolve 五条。容器内 `go test -mod=vendor` 通过。
+4. **P1-6 门禁**：`deploy/perf/gate_p99.py` + `run_perf_gate.py` + Makefile `perf-gate`。短窗（`<90s`）只卡 p95+error_rate；长窗才卡 p99。生成器新增 `--warmup`。
+
+**鉴权活体冒烟（跨容器 platform-worker → gateway:8080）**：
+
+| 场景 | 结果 |
+| --- | --- |
+| 正确 `X-Internal-Token` + `X-Workspace-ID` | **200** |
+| 伪造 token | **401** E01001 |
+| 缺 `X-Workspace-ID` | **401** Missing X-Workspace-ID |
+| 缺内部 token | **401** |
+
+**操作坑**：根目录 `.env` 与 `deploy/compose/.env` 的 `INTERNAL_TOKEN` 不一致。仅用根 `.env` 重建 gateway 会让 29 小时前启动的 worker 全线 401。复现后已用 compose `.env` 对齐，`sha256` 指纹一致后再测。
+
+**门禁实测（跨容器 GIL-free，warmup=10s / 10 VU / 90s 稳态，0 错误）**：
+
+| 端点 | n | p50 | p95 | **p99** | max | 门禁 |
+| --- | --- | --- | --- | --- | --- | --- |
+| gateway `/healthz` | 2960 | 3.82ms | 6.00ms | **8.46ms** | 11.9ms | PASS |
+| gateway `/v1/chat/completions` | 2930 | 6.21ms | 9.83ms | **13.60ms** | 20.3ms | PASS |
+
+对照 §10.13（20 VU × 120s）chat p99=14.26ms：本轮鉴权改为常量时间比较后无回归，余量约 2.2×。短窗 25s 曾把同一栈的 chat p99 抬到 111ms，已证明是样本不足而非服务端回退。
+
+**验证状态**：gateway 容器 `go test -mod=vendor`（cmd/gateway + token + middleware + server）通过；`test_gate_p99.py` 8 项通过；活体鉴权 200/401/401/401；`make perf-gate` 口径长窗 PASS。证据 `deploy/perf/out/perf-gate-latest.json`（不入仓）。**status=candidate，GA 须人工签字。**
