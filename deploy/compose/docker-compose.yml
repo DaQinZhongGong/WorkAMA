@@ -1,8 +1,18 @@
 name: workama
 
+# 生产化基线：统一容器日志轮转，防止 json-file 无上限增长打满磁盘。
+# 所有长驻服务通过 logging: *default-logging 复用；一次性任务（migrations）同样适用。
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.128.0
+    restart: unless-stopped
+    logging: *default-logging
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     volumes:
       - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
@@ -19,6 +29,8 @@ services:
 
   prometheus:
     image: prom/prometheus:v2.54.1
+    restart: unless-stopped
+    logging: *default-logging
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -40,6 +52,8 @@ services:
 
   grafana:
     image: grafana/grafana:11.2.0
+    restart: unless-stopped
+    logging: *default-logging
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-workama_grafana}
@@ -64,6 +78,8 @@ services:
 
   postgres:
     image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-workama}
       POSTGRES_USER: ${POSTGRES_USER:-workama}
@@ -81,6 +97,7 @@ services:
 
   migrations:
     image: postgres:16-alpine
+    logging: *default-logging
     environment:
       PGHOST: postgres
       PGPORT: 5432
@@ -106,6 +123,8 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
+    logging: *default-logging
     ports:
       - "${REDIS_PORT:-20211}:6379"
     healthcheck:
@@ -116,6 +135,8 @@ services:
 
   nats:
     image: nats:2-alpine
+    restart: unless-stopped
+    logging: *default-logging
     command: ["-js", "-m", "8222"]
     ports:
       - "${NATS_PORT:-20212}:4222"
@@ -128,6 +149,13 @@ services:
 
   minio:
     image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
     command: server /data --console-address :9001
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-workama}
@@ -142,6 +170,8 @@ services:
     build:
       context: ../..
       dockerfile: apps/platform-api/Dockerfile
+    restart: unless-stopped
+    logging: *default-logging
     volumes:
       # Mount local src/tests directories so code edits are reflected
       # inside the container without rebuilding the image.
@@ -234,6 +264,8 @@ services:
       context: ../..
       dockerfile: apps/platform-api/Dockerfile
     command: ["python", "-m", "workama_platform.worker"]
+    restart: unless-stopped
+    logging: *default-logging
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-workama}:${POSTGRES_PASSWORD:-workama_dev}@postgres:5432/${POSTGRES_DB:-workama}
       REDIS_URL: redis://redis:6379/0
@@ -274,6 +306,8 @@ services:
     build:
       context: ../..
       dockerfile: apps/gateway/Dockerfile
+    restart: unless-stopped
+    logging: *default-logging
     environment:
       PLATFORM_API_URL: http://platform-api:8000
       # Placeholder default is rejected at gateway startup. Set a unique
@@ -323,6 +357,8 @@ services:
       context: ../..
       dockerfile: apps/platform-api/Dockerfile
     command: ["python", "-m", "workama_platform.rag_worker"]
+    restart: unless-stopped
+    logging: *default-logging
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-workama}:${POSTGRES_PASSWORD:-workama_dev}@postgres:5432/${POSTGRES_DB:-workama}
       REDIS_URL: redis://redis:6379/0
@@ -359,6 +395,8 @@ services:
     build:
       context: ../..
       dockerfile: apps/agent-server/Dockerfile
+    restart: unless-stopped
+    logging: *default-logging
     volumes:
       # Mount local tests directory so new/edited test files are available
       # inside the container without rebuilding the image or `docker cp`.
@@ -393,6 +431,8 @@ services:
 
   sandbox-agentd:
     image: workama-sandbox-agentd:local
+    restart: unless-stopped
+    logging: *default-logging
     build:
       context: ../..
       dockerfile: apps/sandbox-agentd/Dockerfile
@@ -410,6 +450,8 @@ services:
     build:
       context: ../..
       dockerfile: apps/sandbox-fleet/Dockerfile
+    restart: unless-stopped
+    logging: *default-logging
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-workama}:${POSTGRES_PASSWORD:-workama_dev}@postgres:5432/${POSTGRES_DB:-workama}
       NATS_URL: nats://nats:4222
@@ -459,6 +501,8 @@ services:
       retries: 20
 
   web:
+    restart: unless-stopped
+    logging: *default-logging
     build:
       context: ../..
       dockerfile: apps/web/Dockerfile
@@ -466,6 +510,12 @@ services:
         VITE_PLATFORM_API_URL: ${VITE_PLATFORM_API_URL:-http://localhost:20200}
         VITE_AGENT_WS_URL: ${VITE_AGENT_WS_URL:-ws://localhost:20201}
         VITE_GRAFANA_URL: ${VITE_GRAFANA_URL:-http://localhost:20230/d/workama-overview/workama-platform-overview?orgId=1&kiosk=1}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
     volumes:
       # Mount test files into the container so they survive restarts and
       # auto-sync with the host without `docker cp`. All mounts are read-only
@@ -492,6 +542,8 @@ services:
         condition: service_healthy
 
   miniapp:
+    restart: unless-stopped
+    logging: *default-logging
     build:
       context: ../..
       dockerfile: apps/miniapp/Dockerfile
@@ -507,6 +559,25 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+  # OpenAI 兼容 mock 上游（验证夹具，非真实 LLM）。仅在 --profile mock-llm 时启动，
+  # 用于本地证明「网关 → 真实 HTTP 上游 → 计量」全链路；配合配置中心 llm_staging_*
+  # 覆盖渠道使用：控制台把 base_url 指向 http://mock-llm:9101/v1 即可热切换。
+  mock-llm:
+    profiles: ["mock-llm"]
+    image: python:3.12-slim
+    restart: unless-stopped
+    logging: *default-logging
+    command: ["python", "/tools/mock_llm_upstream.py", "--port", "9101"]
+    volumes:
+      - ../../tools/mock_llm_upstream.py:/tools/mock_llm_upstream.py:ro
+    ports:
+      - "${MOCK_LLM_PORT:-20250}:9101"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9101/healthz')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
 
 volumes:
   workama-postgres:

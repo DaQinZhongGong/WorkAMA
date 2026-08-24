@@ -185,7 +185,7 @@ export function AdminCreateForm({
       ))}
       {formError && <div className="alert alert-error">{formError}</div>}
       <Button type="submit" variant="primary" loading={busy}>
-        {t(submitLabel)}
+        {t(submitLabel as MessageKey)}
       </Button>
     </form>
   )

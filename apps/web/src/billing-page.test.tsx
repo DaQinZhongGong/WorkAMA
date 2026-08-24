@@ -9,6 +9,12 @@ import AdminBillingPage from './billing-page'
 
 afterEach(() => cleanup())
 
+// 固定 zh-CN：LocaleProvider 优先读 localStorage，避免 jsdom 默认
+// navigator.language（en-US）使断言随环境语言漂移。
+beforeEach(() => {
+  window.localStorage.setItem('workama.locale', 'zh-CN')
+})
+
 const apiGetMock = vi.fn()
 
 vi.mock('./api', () => ({
@@ -47,8 +53,8 @@ describe('AdminBillingPage', () => {
   it('渲染页面标题并立即请求计费总览', async () => {
     apiGetMock.mockResolvedValue({ plans: [], subscription: {}, usage: {} })
     renderWithProviders(<AdminBillingPage />)
-    expect(screen.getByText('订阅计费')).toBeInTheDocument()
-    expect(screen.getByText('当前订阅、用量趋势与可选套餐对比')).toBeInTheDocument()
+    expect(screen.getByText('账单')).toBeInTheDocument()
+    expect(screen.getByText('在付款状态变成意外之前，掌握套餐容量、用量、发票和结算状态。')).toBeInTheDocument()
     await waitFor(() => expect(apiGetMock).toHaveBeenCalledWith('/api/v1/billing/overview'))
   })
 

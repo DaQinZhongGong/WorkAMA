@@ -8,6 +8,7 @@ from opentelemetry import metrics, trace
 from workama_observability import configure_observability, request_id_var, workspace_id_var
 
 from workama_platform.core import ensure_runtime_schema, new_id, pool
+from workama_platform.modules.config_center import config_watcher_loop
 from workama_platform.modules.jobs import (
     cancel_claimed_job,
     claim_jobs,
@@ -89,9 +90,12 @@ async def run() -> None:
     configure_observability("rag-worker")
     await pool.open()
     await ensure_runtime_schema()
+    # v7.181: 跨进程热收敛——UI 配置发布后 ≤1s 重应用到本进程 settings。
+    config_watcher_task = asyncio.create_task(config_watcher_loop())
     try:
-        await asyncio.gather(loop(), heartbeat_loop())
+        await asyncio.gather(loop(), heartbeat_loop(), config_watcher_task)
     finally:
+        config_watcher_task.cancel()
         await pool.close()
 
 

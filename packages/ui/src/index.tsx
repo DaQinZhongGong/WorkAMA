@@ -48,8 +48,16 @@ type LocaleContextValue = {
 const LocaleContext = createContext<LocaleContextValue | null>(null)
 const STORAGE_KEY = 'workama.locale'
 
-export function LocaleProvider({ children }: { children: ReactNode }) {
+export function LocaleProvider({
+  children,
+  initialLocale,
+}: {
+  children: ReactNode
+  /** 显式钉定初始 locale（测试/嵌入场景用）；缺省时按 localStorage → navigator.language 解析。 */
+  initialLocale?: Locale
+}) {
   const [locale, setLocale] = useState<Locale>(() => {
+    if (initialLocale === 'zh-CN' || initialLocale === 'en-US') return initialLocale
     const saved =
       typeof window !== 'undefined'
         ? window.localStorage.getItem(STORAGE_KEY)

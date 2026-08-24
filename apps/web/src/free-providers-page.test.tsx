@@ -59,7 +59,8 @@ const sampleProviders: FreeProviderPreset[] = [
 function renderWithProviders(ui: ReactElement) {
   return render(
     <MemoryRouter>
-      <LocaleProvider>{ui}</LocaleProvider>
+      {/* 本文件断言英文文案（/Enable|启用/ 等），显式钉住 en-US 保证确定性 */}
+      <LocaleProvider initialLocale="en-US">{ui}</LocaleProvider>
     </MemoryRouter>,
   )
 }

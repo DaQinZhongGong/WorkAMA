@@ -62,6 +62,17 @@ func newFernetCipher(masterB64 string) (*fernetCipher, error) {
 	return &fernetCipher{signingKey: append([]byte{}, master[:16]...), encryptionKey: append([]byte{}, master[16:]...)}, nil
 }
 
+// DecryptFernetToken 用 url-safe base64 编码的 32 字节主密钥解密一个 Fernet
+// token，返回明文。导出给配置同步（configsync）等模块复用同一套与 Python
+// cryptography 字节级兼容的实现；maxClockSkew 传 0 表示不校验时间戳。
+func DecryptFernetToken(masterB64, token string, maxClockSkew time.Duration) ([]byte, error) {
+	cipher, err := newFernetCipher(masterB64)
+	if err != nil {
+		return nil, err
+	}
+	return cipher.Decrypt(token, maxClockSkew)
+}
+
 // hmacSum 计算 HMAC-SHA256(key, msg) 并返回 32 字节摘要。
 func hmacSum(key, msg []byte) []byte {
 	mac := hmac.New(sha256.New, key)

@@ -24,7 +24,8 @@ import { Button, Field, IconButton, Modal, SearchBox, DataTable } from './ui'
 afterEach(() => cleanup())
 
 function renderWithProviders(ui: ReactElement) {
-  return render(<MemoryRouter><LocaleProvider>{ui}</LocaleProvider></MemoryRouter>)
+  // 本文件断言英文可访问名称（Close / Invite member 等），显式钉住 en-US 保证确定性
+  return render(<MemoryRouter><LocaleProvider initialLocale="en-US">{ui}</LocaleProvider></MemoryRouter>)
 }
 
 // ---- 共享 UI 原语 a11y ----------------------------------------------------

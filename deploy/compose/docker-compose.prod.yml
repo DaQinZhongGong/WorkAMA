@@ -1,0 +1,58 @@
+# WorkAMA 生产环境 override（与 docker-compose.yml 叠加使用）
+#
+# 用法：
+#   make prod-up   # 等价于：
+#   docker compose --env-file deploy/compose/.env.production \
+#     -f deploy/compose/docker-compose.yml \
+#     -f deploy/compose/docker-compose.prod.yml up -d --build
+#
+# 设计：所有安全关键变量用 ${VAR:?message} 插值 —— 缺失时 compose 解析期
+# 立即报错退出（fail-fast），而不是带着弱默认值把服务拉起来再靠运行时拒绝。
+# 运行时启动期校验（validate_production_secrets / resolveInternalToken 等）
+# 仍然保留，作为第二道防线。
+#
+# 可运维配置（限流/SMTP/OAuth/LLM 渠道等）不在这里——一律经控制台
+# /admin/platform-config 管理（DB > ENV > 默认）。
+
+services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in production}
+
+  platform-api:
+    environment:
+      WORKAMA_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required in production (>=32 random chars)}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:?INTERNAL_TOKEN is required in production (unique secret)}
+      KEY_PEPPER: ${KEY_PEPPER:?KEY_PEPPER is required in production (unique secret)}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required in production (Fernet 32-byte url-safe base64)}
+
+  platform-worker:
+    environment:
+      WORKAMA_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required in production}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:?INTERNAL_TOKEN is required in production}
+      KEY_PEPPER: ${KEY_PEPPER:?KEY_PEPPER is required in production}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required in production}
+
+  rag-worker:
+    environment:
+      WORKAMA_ENV: production
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:?INTERNAL_TOKEN is required in production}
+      KEY_PEPPER: ${KEY_PEPPER:?KEY_PEPPER is required in production}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required in production}
+
+  gateway:
+    environment:
+      WORKAMA_ENV: production
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:?INTERNAL_TOKEN is required in production}
+      KEY_PEPPER: ${KEY_PEPPER:?KEY_PEPPER is required in production}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required in production}
+
+  agent-server:
+    environment:
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:?INTERNAL_TOKEN is required in production}
+
+  sandbox-fleet:
+    environment:
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:?INTERNAL_TOKEN is required in production}

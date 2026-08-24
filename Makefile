@@ -1,4 +1,4 @@
-.PHONY: dev down logs contract-check docs-check test smoke perf-gate
+. PHONY: dev down logs contract-check docs-check test smoke perf-gate secret-gate
 
 # Prefer the env-file the running stack actually uses. Root `.env` and
 # `deploy/compose/.env` can diverge and rotate INTERNAL_TOKEN on recreate.
@@ -39,3 +39,20 @@ smoke:
 
 perf-gate:
 	python deploy/perf/run_perf_gate.py
+
+secret-gate:
+	python tools/secret-gate.py
+
+# 生产拉起：预检 .env.production（fail-fast）→ compose 双文件叠加。
+# 可运维配置不在 env 文件里——部署后经控制台 /admin/platform-config 管理。
+PROD_ENV_FILE := deploy/compose/.env.production
+PROD_COMPOSE_FILES := -f deploy/compose/docker-compose.yml -f deploy/compose/docker-compose.prod.yml
+
+prod-check:
+	python tools/prod_env_check.py --env-file $(PROD_ENV_FILE)
+
+prod-up: prod-check
+	docker compose --env-file $(PROD_ENV_FILE) $(PROD_COMPOSE_FILES) up -d --build
+
+prod-down:
+	docker compose --env-file $(PROD_ENV_FILE) $(PROD_COMPOSE_FILES) down

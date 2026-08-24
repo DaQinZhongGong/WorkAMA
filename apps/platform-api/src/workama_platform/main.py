@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -9,7 +10,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from workama_observability import configure_observability, install_fastapi
 
-from workama_platform.core import ensure_runtime_schema, pool, redis, settings
+from workama_platform.core import (
+    ensure_runtime_schema,
+    pool,
+    redis,
+    settings,
+    validate_production_secrets,
+)
 from workama_platform.modules.auth.router import router as auth_router
 from workama_platform.modules.billing.router import internal_router as billing_internal_router
 from workama_platform.modules.billing.router import admin_router as billing_admin_router
@@ -183,12 +190,27 @@ from workama_platform.modules.skill_market import market_router, agent_skills_ro
 # v7.178: P2 性能优化专项模块（metrics / slow-queries / cache / benchmark / health-check / query-explain）
 from workama_platform.modules.performance import register_middleware as register_performance_middleware
 from workama_platform.modules.performance import router as performance_router
+# v7.180: 配置中心——以可视化界面取代 .env 的运行时配置系统
+from workama_platform.modules.config_center import (
+    config_watcher_loop,
+    ensure_config_schema,
+    load_and_apply_config_overrides,
+)
+from workama_platform.modules.config_center import (
+    router as config_router,
+    internal_router as config_internal_router,
+)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # 生产环境密钥硬化：弱密钥 / 占位符直接阻断启动（pool.open 之前），
+    # 避免以弱密钥对外提供服务。开发 / 测试环境不强制。
+    validate_production_secrets()
     await pool.open()
     await ensure_runtime_schema()
+    # v7.180: 配置中心——建表（UI 优先级最高，落库覆盖 ENV）
+    await ensure_config_schema()
     await _ensure_rollout_schema()
     async with pool.connection() as conn:
         async with conn.transaction():
@@ -235,7 +257,13 @@ async def lifespan(_: FastAPI):
     # 失败只 log warning，不阻断启动。
     await ensure_builtin_mcp_tools()
     await redis.ping()
+    # v7.180: 配置中心——Redis 就绪后把 UI 配置覆盖到 settings 单例（实时热生效基础）
+    await load_and_apply_config_overrides()
+    # v7.181: 跨进程热收敛——Granian 多 worker 下 PUT 只落在单进程，其余进程
+    # 通过 Redis 版本号轮询（≤1s）重应用 UI 配置。
+    config_watcher_task = asyncio.create_task(config_watcher_loop())
     yield
+    config_watcher_task.cancel()
     await redis.aclose()
     await pool.close()
 
@@ -501,6 +529,9 @@ app.include_router(artifact_internal_router)
 app.include_router(public_router)
 # v7.178: P2 性能优化专项路由（metrics / slow-queries / cache / benchmark / health-check / query-explain）
 app.include_router(performance_router)
+# v7.180: 配置中心（可视化配置 UI 取代 .env）
+app.include_router(config_router)
+app.include_router(config_internal_router)
 
 
 @app.get("/healthz", tags=["system"])

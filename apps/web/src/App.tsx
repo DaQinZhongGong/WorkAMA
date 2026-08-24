@@ -58,6 +58,7 @@ const AdminMcpToolsPage = lazy(() => import('./mcp-tools-page'))
 const AdminFilesPage = lazy(() => import('./files-page'))
 const AdminMemoryVectorsPage = lazy(() => import('./memory-vectors-page'))
 const AdminConnectorsPage = lazy(() => import('./admin-connectors-page'))
+const AdminPlatformConfigPage = lazy(() => import('./admin-platform-config-page'))
 const AdminAutomationsPage = lazy(() => import('./admin-automations-page'))
 const AdminPushPage = lazy(() => import('./admin-push-page'))
 const AdminDesignProjectsPage = lazy(() => import('./admin-design-projects-page'))
@@ -281,6 +282,7 @@ export default function App() {
           <Route path="/admin/connectors" element={<AdminConnectorsPage />} />
           <Route path="/admin/automations" element={<AdminAutomationsPage />} />
           <Route path="/admin/push" element={<AdminPushPage />} />
+          <Route path="/admin/platform-config" element={<AdminPlatformConfigPage />} />
           <Route path="/admin/design-projects" element={<AdminDesignProjectsPage />} />
           <Route path="/admin/external-apps" element={<AdminExternalAppsPage />} />
           <Route path="/admin/agent-planner" element={<AdminAgentPlannerPage />} />

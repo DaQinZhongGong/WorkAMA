@@ -46,7 +46,7 @@ const STAT_CARDS: { key: keyof DashboardStats; labelKey: MessageKey; testId: str
   { key: 'current_plan', labelKey: 'admin.dashboard.stat.plan', testId: 'stat-plan', icon: Sparkles, trendKey: 'admin.dashboard.trend.plan' },
 ]
 
-const GETTING_STARTED = [
+const GETTING_STARTED: { titleKey: MessageKey; descKey: MessageKey; to: string; done: boolean }[] = [
   { titleKey: 'admin.dashboard.gs.createAssistant.title', descKey: 'admin.dashboard.gs.createAssistant.desc', to: '/agents', done: true },
   { titleKey: 'admin.dashboard.gs.connectChannels.title', descKey: 'admin.dashboard.gs.connectChannels.desc', to: '/gateway/channels', done: true },
   { titleKey: 'admin.dashboard.gs.buildKb.title', descKey: 'admin.dashboard.gs.buildKb.desc', to: '/knowledge', done: false },

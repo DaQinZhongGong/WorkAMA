@@ -186,6 +186,73 @@ def decrypt_secret(value: str | None) -> str | None:
     return fernet.decrypt(value.encode()).decode()
 
 
+# ------------------------------------------------------------------------------
+# 生产密钥硬化：启动期拒绝占位符 / 弱密钥（与网关 INTERNAL_TOKEN 处理逻辑一致）
+# ------------------------------------------------------------------------------
+# 文档化的占位符（任何环境都不应作为真实密钥）。
+_PLACEHOLDER_JWT_SECRETS: frozenset[str] = frozenset(
+    {
+        "change-this-jwt-secret",
+        "workama-local-jwt-secret-change-before-production",
+    }
+)
+_PLACEHOLDER_KEY_PEPPERS: frozenset[str] = frozenset(
+    {
+        "change-this-key-pepper",
+        "change-this-pepper",
+        "workama-local-key-pepper-change-before-production",
+    }
+)
+_PLACEHOLDER_INTERNAL_TOKENS: frozenset[str] = frozenset(
+    {
+        "change-this-internal-token",
+    }
+)
+# 已知弱默认值（base64 编码的 32 字节全 0x42）。生产环境必须替换为唯一密钥。
+_WEAK_ENCRYPTION_KEY = "QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI="
+# 密钥最小长度阈值（字节 / 字符）。低于此值视为弱密钥。
+_MIN_SECRET_LEN = 16
+
+
+def _secret_is_placeholder(value: str, placeholders: frozenset[str]) -> bool:
+    v = (value or "").strip()
+    if not v:
+        return True
+    return v in placeholders
+
+
+def validate_production_secrets(s: Settings | None = None) -> None:
+    """生产环境拒绝占位符 / 弱密钥；开发 / 测试环境不强制。
+
+    在 app lifespan 启动期调用（pool.open 之前）。返回 None 表示通过；
+    否则抛 ``RuntimeError`` 阻断启动，避免以弱密钥对外提供服务。
+
+    传入 ``s`` 便于单测；默认使用模块级单例 ``settings``。
+    """
+    s = s or settings
+    if s.workama_env.lower() != "production":
+        return
+    problems: list[str] = []
+    if _secret_is_placeholder(s.jwt_secret, _PLACEHOLDER_JWT_SECRETS) or len(s.jwt_secret) < _MIN_SECRET_LEN:
+        problems.append("JWT_SECRET is a placeholder or too short (<16 chars)")
+    if _secret_is_placeholder(s.key_pepper, _PLACEHOLDER_KEY_PEPPERS) or len(s.key_pepper) < _MIN_SECRET_LEN:
+        problems.append("KEY_PEPPER is a placeholder or too short (<16 chars)")
+    if _secret_is_placeholder(s.internal_token, _PLACEHOLDER_INTERNAL_TOKENS) or len(s.internal_token) < _MIN_SECRET_LEN:
+        problems.append("INTERNAL_TOKEN is a placeholder or too short (<16 chars)")
+    enc = (s.encryption_key or "").strip()
+    if not enc or enc == _WEAK_ENCRYPTION_KEY:
+        problems.append("ENCRYPTION_KEY is empty or the known weak default")
+    else:
+        try:
+            Fernet(enc.encode())
+        except Exception:
+            problems.append("ENCRYPTION_KEY is not a valid Fernet key (32 url-safe base64 bytes)")
+    if problems:
+        raise RuntimeError(
+            "Refusing to start in production with weak secrets: " + "; ".join(problems)
+        )
+
+
 def hash_password(value: str) -> str:
     return password_hasher.hash(value)
 

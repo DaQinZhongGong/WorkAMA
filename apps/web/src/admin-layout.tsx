@@ -54,6 +54,7 @@ const NAV_ITEMS: NavEntry[] = [
   { to: '/admin/design-projects', labelKey: 'admin.nav.designProjects', icon: Palette },
   { to: '/admin/external-apps', labelKey: 'admin.nav.externalApps', icon: Network },
   { to: '/admin/agent-planner', labelKey: 'admin.nav.agentPlanner', icon: GitBranch },
+  { to: '/admin/platform-config', labelKey: 'admin.nav.platformConfig', icon: Wrench },
 ]
 
 export function AdminLayout(): ReactNode {

@@ -12,14 +12,14 @@ import { Badge, Button, DataTable, EmptyAction, Field, IconButton, Kpi, Modal, P
 afterEach(() => cleanup())
 
 function renderWithLocale(element: ReactElement) {
-  return renderToStaticMarkup(<LocaleProvider>{element}</LocaleProvider>)
+  return renderToStaticMarkup(<LocaleProvider initialLocale="en-US">{element}</LocaleProvider>)
 }
 
 // 用 LocaleProvider（部分组件依赖 useLocale）+ 可选 MemoryRouter（EmptyAction 依赖 Link）包裹后渲染到 jsdom，
 // 配合 screen / fireEvent 进行真正的交互断言。
 function renderWithProviders(ui: ReactElement, options: { router?: boolean } = {}) {
   const tree = options.router ? <MemoryRouter>{ui}</MemoryRouter> : ui
-  return render(<LocaleProvider>{tree}</LocaleProvider>)
+  return render(<LocaleProvider initialLocale="en-US">{tree}</LocaleProvider>)
 }
 
 describe('console UI primitives', () => {

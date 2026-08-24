@@ -419,14 +419,14 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/audit_log.py",
         "handler": "release_legal_hold",
-        "line": 994,
+        "line": 995,
         "method": "DELETE",
         "path": "/api/v1/audit-logs/legal-holds/{}"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/audit_log.py",
         "handler": "delete_audit_log",
-        "line": 1226,
+        "line": 1227,
         "method": "DELETE",
         "path": "/api/v1/audit-logs/{}"
       },
@@ -464,6 +464,13 @@
         "line": 1248,
         "method": "DELETE",
         "path": "/api/v1/channel-bindings/{}"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/config_center.py",
+        "handler": "delete_value",
+        "line": 808,
+        "method": "DELETE",
+        "path": "/api/v1/config/values/{}"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/connectors_v2.py",
@@ -629,35 +636,35 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "dissolve_group",
-        "line": 1468,
+        "line": 1706,
         "method": "DELETE",
         "path": "/api/v1/im/groups/{}"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "remove_group_member",
-        "line": 1536,
+        "line": 1774,
         "method": "DELETE",
         "path": "/api/v1/im/groups/{}/members/{}"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "delete_offline_message",
-        "line": 1306,
+        "line": 1544,
         "method": "DELETE",
         "path": "/api/v1/im/offline-messages/{}"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_base.py",
         "handler": "delete_knowledge_base",
-        "line": 519,
+        "line": 545,
         "method": "DELETE",
         "path": "/api/v1/knowledge-bases/{}"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_base.py",
         "handler": "delete_document",
-        "line": 648,
+        "line": 678,
         "method": "DELETE",
         "path": "/api/v1/knowledge-bases/{}/documents/{}"
       },
@@ -674,6 +681,20 @@
         "line": 766,
         "method": "DELETE",
         "path": "/api/v1/knowledge/eval-sets/{}/cases/{}"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/knowledge_eval.py",
+        "handler": "delete_golden_set",
+        "line": 1744,
+        "method": "DELETE",
+        "path": "/api/v1/knowledge/golden-sets/{}"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/knowledge_eval.py",
+        "handler": "delete_golden_case",
+        "line": 1841,
+        "method": "DELETE",
+        "path": "/api/v1/knowledge/golden-sets/{}/cases/{}"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/mcp.py",
@@ -706,14 +727,14 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "leave_conversation",
-        "line": 477,
+        "line": 668,
         "method": "DELETE",
         "path": "/api/v1/messaging/conversations/{}"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "remove_member",
-        "line": 935,
+        "line": 1169,
         "method": "DELETE",
         "path": "/api/v1/messaging/conversations/{}/members/{}"
       },
@@ -909,14 +930,14 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/billing/router.py",
         "handler": "admin_reconciliations",
-        "line": 165,
+        "line": 264,
         "method": "GET",
         "path": "/api/v1/admin/billing/reconciliations"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/billing/router.py",
         "handler": "get_admin_reconciliation",
-        "line": 182,
+        "line": 281,
         "method": "GET",
         "path": "/api/v1/admin/billing/reconciliations/{}"
       },
@@ -1056,9 +1077,16 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/search.py",
         "handler": "search_status",
-        "line": 110,
+        "line": 159,
         "method": "GET",
         "path": "/api/v1/admin/search-index-status"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/admin_stats.py",
+        "handler": "admin_stats",
+        "line": 24,
+        "method": "GET",
+        "path": "/api/v1/admin/stats"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/agent_planner.py",
@@ -1154,7 +1182,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "list_assistants",
-        "line": 586,
+        "line": 674,
         "method": "GET",
         "path": "/api/v1/assistants"
       },
@@ -1168,7 +1196,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "get_assistant",
-        "line": 621,
+        "line": 715,
         "method": "GET",
         "path": "/api/v1/assistants/{}"
       },
@@ -1182,21 +1210,21 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "list_assistant_runs",
-        "line": 634,
+        "line": 728,
         "method": "GET",
         "path": "/api/v1/assistants/{}/runs"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "get_assistant_run",
-        "line": 651,
+        "line": 745,
         "method": "GET",
         "path": "/api/v1/assistants/{}/runs/{}"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "list_assistant_run_events",
-        "line": 671,
+        "line": 765,
         "method": "GET",
         "path": "/api/v1/assistants/{}/runs/{}/events"
       },
@@ -1238,14 +1266,14 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/audit_log.py",
         "handler": "list_legal_holds",
-        "line": 964,
+        "line": 965,
         "method": "GET",
         "path": "/api/v1/audit-logs/legal-holds"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/audit_log.py",
         "handler": "get_siem_config",
-        "line": 1156,
+        "line": 1157,
         "method": "GET",
         "path": "/api/v1/audit-logs/siem/config"
       },
@@ -1259,7 +1287,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/audit_log.py",
         "handler": "get_audit_log",
-        "line": 1210,
+        "line": 1211,
         "method": "GET",
         "path": "/api/v1/audit-logs/{}"
       },
@@ -1350,7 +1378,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/billing/router.py",
         "handler": "account",
-        "line": 40,
+        "line": 140,
         "method": "GET",
         "path": "/api/v1/billing/account"
       },
@@ -1364,14 +1392,14 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/billing/router.py",
         "handler": "get_billing_forecast",
-        "line": 268,
+        "line": 367,
         "method": "GET",
         "path": "/api/v1/billing/forecast"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/billing/router.py",
         "handler": "grants",
-        "line": 58,
+        "line": 157,
         "method": "GET",
         "path": "/api/v1/billing/grants"
       },
@@ -1418,6 +1446,13 @@
         "path": "/api/v1/billing/orders/{}"
       },
       {
+        "file": "apps/platform-api/src/workama_platform/modules/billing/router.py",
+        "handler": "overview",
+        "line": 40,
+        "method": "GET",
+        "path": "/api/v1/billing/overview"
+      },
+      {
         "file": "apps/platform-api/src/workama_platform/modules/subscriptions.py",
         "handler": "list_payment_methods",
         "line": 827,
@@ -1455,7 +1490,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/billing/router.py",
         "handler": "reconciliations",
-        "line": 118,
+        "line": 217,
         "method": "GET",
         "path": "/api/v1/billing/reconciliations"
       },
@@ -1497,14 +1532,14 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/billing/router.py",
         "handler": "transactions",
-        "line": 76,
+        "line": 175,
         "method": "GET",
         "path": "/api/v1/billing/transactions"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/billing/router.py",
         "handler": "get_billing_transaction",
-        "line": 205,
+        "line": 304,
         "method": "GET",
         "path": "/api/v1/billing/transactions/{}"
       },
@@ -1518,7 +1553,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/billing/router.py",
         "handler": "usage",
-        "line": 92,
+        "line": 191,
         "method": "GET",
         "path": "/api/v1/billing/usage"
       },
@@ -1574,7 +1609,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/chaos.py",
         "handler": "chaos_status",
-        "line": 289,
+        "line": 290,
         "method": "GET",
         "path": "/api/v1/chaos/status"
       },
@@ -1682,6 +1717,34 @@
         "line": 525,
         "method": "GET",
         "path": "/api/v1/compliance/region"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/config_center.py",
+        "handler": "get_history",
+        "line": 665,
+        "method": "GET",
+        "path": "/api/v1/config/history"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/config_center.py",
+        "handler": "get_revisions",
+        "line": 710,
+        "method": "GET",
+        "path": "/api/v1/config/revisions"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/config_center.py",
+        "handler": "get_schema",
+        "line": 521,
+        "method": "GET",
+        "path": "/api/v1/config/schema"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/config_center.py",
+        "handler": "get_values",
+        "line": 553,
+        "method": "GET",
+        "path": "/api/v1/config/values"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/connectors.py",
@@ -2008,14 +2071,14 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/compliance.py",
         "handler": "list_jit_grants",
-        "line": 456,
+        "line": 455,
         "method": "GET",
         "path": "/api/v1/enterprise/compliance/jit-grants"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/compliance.py",
         "handler": "list_legal_holds",
-        "line": 418,
+        "line": 417,
         "method": "GET",
         "path": "/api/v1/enterprise/compliance/legal-holds"
       },
@@ -2036,16 +2099,9 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/compliance.py",
         "handler": "list_privacy_events",
-        "line": 520,
+        "line": 519,
         "method": "GET",
         "path": "/api/v1/enterprise/compliance/privacy-events"
-      },
-      {
-        "file": "apps/platform-api/src/workama_platform/modules/compliance.py",
-        "handler": "get_region_policy",
-        "line": 393,
-        "method": "GET",
-        "path": "/api/v1/enterprise/compliance/region-policy"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/data_residency.py",
@@ -2064,7 +2120,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/compliance.py",
         "handler": "list_subprocessors",
-        "line": 497,
+        "line": 496,
         "method": "GET",
         "path": "/api/v1/enterprise/compliance/subprocessors"
       },
@@ -2448,57 +2504,78 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
+        "handler": "list_delivery_cursors",
+        "line": 2096,
+        "method": "GET",
+        "path": "/api/v1/im/delivery-cursors"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "list_my_groups",
-        "line": 1392,
+        "line": 1630,
         "method": "GET",
         "path": "/api/v1/im/groups"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "get_group_detail",
-        "line": 1417,
+        "line": 1655,
         "method": "GET",
         "path": "/api/v1/im/groups/{}"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
+        "handler": "list_group_audit",
+        "line": 2390,
+        "method": "GET",
+        "path": "/api/v1/im/groups/{}/audit"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "list_group_members",
-        "line": 1595,
+        "line": 1833,
         "method": "GET",
         "path": "/api/v1/im/groups/{}/members"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
+        "handler": "list_message_history",
+        "line": 2443,
+        "method": "GET",
+        "path": "/api/v1/im/messages/{}/history"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "list_offline_messages",
-        "line": 1204,
+        "line": 1442,
         "method": "GET",
         "path": "/api/v1/im/offline-messages"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_base.py",
         "handler": "list_knowledge_bases",
-        "line": 472,
+        "line": 498,
         "method": "GET",
         "path": "/api/v1/knowledge-bases"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_base.py",
         "handler": "get_knowledge_base",
-        "line": 508,
+        "line": 534,
         "method": "GET",
         "path": "/api/v1/knowledge-bases/{}"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_base.py",
         "handler": "list_documents",
-        "line": 598,
+        "line": 628,
         "method": "GET",
         "path": "/api/v1/knowledge-bases/{}/documents"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_base.py",
         "handler": "get_document",
-        "line": 636,
+        "line": 666,
         "method": "GET",
         "path": "/api/v1/knowledge-bases/{}/documents/{}"
       },
@@ -2554,28 +2631,35 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_eval.py",
         "handler": "list_golden_sets",
-        "line": 1651,
+        "line": 1674,
         "method": "GET",
         "path": "/api/v1/knowledge/golden-sets"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_eval.py",
         "handler": "get_golden_set",
-        "line": 1677,
+        "line": 1700,
         "method": "GET",
         "path": "/api/v1/knowledge/golden-sets/{}"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_eval.py",
+        "handler": "export_golden_cases",
+        "line": 1897,
+        "method": "GET",
+        "path": "/api/v1/knowledge/golden-sets/{}/cases/export"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/knowledge_eval.py",
         "handler": "list_golden_reports",
-        "line": 1869,
+        "line": 2088,
         "method": "GET",
         "path": "/api/v1/knowledge/golden-sets/{}/reports"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_eval.py",
         "handler": "get_report",
-        "line": 1889,
+        "line": 2108,
         "method": "GET",
         "path": "/api/v1/knowledge/reports/{}"
       },
@@ -2785,35 +2869,35 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "list_conversations",
-        "line": 331,
+        "line": 511,
         "method": "GET",
         "path": "/api/v1/messaging/conversations"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "list_members",
-        "line": 999,
+        "line": 1233,
         "method": "GET",
         "path": "/api/v1/messaging/conversations/{}/members"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "list_messages",
-        "line": 355,
+        "line": 535,
         "method": "GET",
         "path": "/api/v1/messaging/conversations/{}/messages"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "get_presence",
-        "line": 838,
+        "line": 1072,
         "method": "GET",
         "path": "/api/v1/messaging/conversations/{}/presence"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "get_unread_count",
-        "line": 868,
+        "line": 1102,
         "method": "GET",
         "path": "/api/v1/messaging/conversations/{}/unread"
       },
@@ -3037,7 +3121,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "get_public_assistant",
-        "line": 735,
+        "line": 829,
         "method": "GET",
         "path": "/api/v1/public/assistants/{}"
       },
@@ -3107,14 +3191,14 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/search.py",
         "handler": "global_search",
-        "line": 74,
+        "line": 98,
         "method": "GET",
         "path": "/api/v1/search"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/security_hardening.py",
         "handler": "verify_audit_chain_endpoint",
-        "line": 937,
+        "line": 954,
         "method": "GET",
         "path": "/api/v1/security/audit-chain/verify"
       },
@@ -3352,14 +3436,14 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/search.py",
         "handler": "unified_search",
-        "line": 236,
+        "line": 285,
         "method": "GET",
         "path": "/api/v1/unified-search"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/search.py",
         "handler": "list_resource_types",
-        "line": 341,
+        "line": 390,
         "method": "GET",
         "path": "/api/v1/unified-search/types"
       },
@@ -3485,21 +3569,21 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "get_workflow_run",
-        "line": 1765,
+        "line": 1865,
         "method": "GET",
         "path": "/api/v1/workflow-runs/{}"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "list_workflow_run_events",
-        "line": 1811,
+        "line": 1911,
         "method": "GET",
         "path": "/api/v1/workflow-runs/{}/events"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "stream_workflow_run_events",
-        "line": 1882,
+        "line": 1982,
         "method": "GET",
         "path": "/api/v1/workflow-runs/{}/events/stream"
       },
@@ -3513,7 +3597,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "list_workflows",
-        "line": 848,
+        "line": 942,
         "method": "GET",
         "path": "/api/v1/workflows"
       },
@@ -3534,7 +3618,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "get_workflow",
-        "line": 888,
+        "line": 988,
         "method": "GET",
         "path": "/api/v1/workflows/{}"
       },
@@ -3555,21 +3639,21 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "list_workflow_runs",
-        "line": 1755,
+        "line": 1855,
         "method": "GET",
         "path": "/api/v1/workflows/{}/runs"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "compare_workflow_runs",
-        "line": 979,
+        "line": 1079,
         "method": "GET",
         "path": "/api/v1/workflows/{}/runs/compare"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "list_workflow_events_for_workflow",
-        "line": 1821,
+        "line": 1921,
         "method": "GET",
         "path": "/api/v1/workflows/{}/runs/{}/events"
       },
@@ -3590,7 +3674,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "list_workflow_versions",
-        "line": 938,
+        "line": 1038,
         "method": "GET",
         "path": "/api/v1/workflows/{}/versions"
       },
@@ -3688,21 +3772,21 @@
       {
         "file": "apps/gateway/internal/server/server.go",
         "handler": "mux.HandleFunc",
-        "line": 121,
+        "line": 122,
         "method": "GET",
         "path": "/healthz"
       },
       {
         "file": "apps/gateway/internal/server/server.go",
         "handler": "mux.HandleFunc",
-        "line": 125,
+        "line": 126,
         "method": "GET",
         "path": "/v1/models"
       },
       {
         "file": "apps/gateway/internal/server/server.go",
         "handler": "mux.HandleFunc",
-        "line": 138,
+        "line": 139,
         "method": "GET",
         "path": "/v1/responses/{}"
       },
@@ -3877,16 +3961,37 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "update_group",
-        "line": 1431,
+        "line": 1669,
         "method": "PATCH",
         "path": "/api/v1/im/groups/{}"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
+        "handler": "update_group_member_role",
+        "line": 2317,
+        "method": "PATCH",
+        "path": "/api/v1/im/groups/{}/members/{}/role"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "edit_message",
-        "line": 1743,
+        "line": 1990,
         "method": "PATCH",
         "path": "/api/v1/im/messages/{}"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/knowledge_eval.py",
+        "handler": "update_golden_set",
+        "line": 1717,
+        "method": "PATCH",
+        "path": "/api/v1/knowledge/golden-sets/{}"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/knowledge_eval.py",
+        "handler": "update_golden_case",
+        "line": 1807,
+        "method": "PATCH",
+        "path": "/api/v1/knowledge/golden-sets/{}/cases/{}"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/external_apps.py",
@@ -3912,7 +4017,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "update_conversation",
-        "line": 975,
+        "line": 1209,
         "method": "PATCH",
         "path": "/api/v1/messaging/conversations/{}"
       },
@@ -3996,7 +4101,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "update_workflow",
-        "line": 896,
+        "line": 996,
         "method": "PATCH",
         "path": "/api/v1/workflows/{}"
       },
@@ -4045,7 +4150,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/billing/router.py",
         "handler": "run_admin_reconciliation",
-        "line": 195,
+        "line": 294,
         "method": "POST",
         "path": "/api/v1/admin/billing/reconciliations"
       },
@@ -4136,7 +4241,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/search.py",
         "handler": "rebuild_search",
-        "line": 96,
+        "line": 145,
         "method": "POST",
         "path": "/api/v1/admin/search-index-rebuilds"
       },
@@ -4262,7 +4367,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "create_assistant",
-        "line": 598,
+        "line": 691,
         "method": "POST",
         "path": "/api/v1/assistants"
       },
@@ -4276,7 +4381,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "invoke_assistant",
-        "line": 753,
+        "line": 847,
         "method": "POST",
         "path": "/api/v1/assistants/{}/invoke"
       },
@@ -4290,14 +4395,14 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "create_assistant_version",
-        "line": 684,
+        "line": 778,
         "method": "POST",
         "path": "/api/v1/assistants/{}/versions"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "publish_assistant_version",
-        "line": 707,
+        "line": 801,
         "method": "POST",
         "path": "/api/v1/assistants/{}/versions/{}/publish"
       },
@@ -4318,28 +4423,28 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/audit_log.py",
         "handler": "batch_export_audit_logs",
-        "line": 1029,
+        "line": 1030,
         "method": "POST",
         "path": "/api/v1/audit-logs/export/batch"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/audit_log.py",
         "handler": "create_legal_hold",
-        "line": 929,
+        "line": 930,
         "method": "POST",
         "path": "/api/v1/audit-logs/legal-holds"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/audit_log.py",
         "handler": "upsert_siem_config",
-        "line": 1106,
+        "line": 1107,
         "method": "POST",
         "path": "/api/v1/audit-logs/siem/config"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/audit_log.py",
         "handler": "test_siem_connection",
-        "line": 1174,
+        "line": 1175,
         "method": "POST",
         "path": "/api/v1/audit-logs/siem/test"
       },
@@ -4409,7 +4514,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/security_hardening.py",
         "handler": "refresh_rotate",
-        "line": 963,
+        "line": 980,
         "method": "POST",
         "path": "/api/v1/auth/refresh-rotate"
       },
@@ -4640,7 +4745,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/billing/router.py",
         "handler": "create_billing_usage_export",
-        "line": 221,
+        "line": 320,
         "method": "POST",
         "path": "/api/v1/billing/usage-exports"
       },
@@ -4682,7 +4787,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/chaos.py",
         "handler": "inject_fault",
-        "line": 229,
+        "line": 230,
         "method": "POST",
         "path": "/api/v1/chaos/inject"
       },
@@ -4769,6 +4874,20 @@
         "line": 672,
         "method": "POST",
         "path": "/api/v1/compliance/dsar/{}/process"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/config_center.py",
+        "handler": "rollback",
+        "line": 739,
+        "method": "POST",
+        "path": "/api/v1/config/rollback"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/config_center.py",
+        "handler": "test_connection",
+        "line": 867,
+        "method": "POST",
+        "path": "/api/v1/config/test"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/connectors.py",
@@ -5074,28 +5193,28 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/compliance.py",
         "handler": "create_jit_grant",
-        "line": 464,
+        "line": 463,
         "method": "POST",
         "path": "/api/v1/enterprise/compliance/jit-grants"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/compliance.py",
         "handler": "revoke_jit_grant",
-        "line": 484,
+        "line": 483,
         "method": "POST",
         "path": "/api/v1/enterprise/compliance/jit-grants/{}/revoke"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/compliance.py",
         "handler": "create_legal_hold",
-        "line": 426,
+        "line": 425,
         "method": "POST",
         "path": "/api/v1/enterprise/compliance/legal-holds"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/compliance.py",
         "handler": "release_legal_hold",
-        "line": 442,
+        "line": 441,
         "method": "POST",
         "path": "/api/v1/enterprise/compliance/legal-holds/{}/release"
       },
@@ -5123,14 +5242,14 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/compliance.py",
         "handler": "create_privacy_event",
-        "line": 528,
+        "line": 527,
         "method": "POST",
         "path": "/api/v1/enterprise/compliance/privacy-events"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/compliance.py",
         "handler": "close_privacy_event",
-        "line": 541,
+        "line": 540,
         "method": "POST",
         "path": "/api/v1/enterprise/compliance/privacy-events/{}/close"
       },
@@ -5501,35 +5620,49 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "create_group",
-        "line": 1342,
+        "line": 1580,
         "method": "POST",
         "path": "/api/v1/im/groups"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "leave_group",
-        "line": 1571,
+        "line": 1809,
         "method": "POST",
         "path": "/api/v1/im/groups/{}/leave"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "invite_group_members",
-        "line": 1491,
+        "line": 1729,
         "method": "POST",
         "path": "/api/v1/im/groups/{}/members"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
+        "handler": "transfer_group_ownership",
+        "line": 2227,
+        "method": "POST",
+        "path": "/api/v1/im/groups/{}/transfer-ownership"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "retract_message",
-        "line": 1695,
+        "line": 1933,
         "method": "POST",
         "path": "/api/v1/im/messages/{}/retract"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
+        "handler": "ack_offline_messages_batch",
+        "line": 2138,
+        "method": "POST",
+        "path": "/api/v1/im/offline-messages/ack-batch"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "ack_offline_message",
-        "line": 1267,
+        "line": 1505,
         "method": "POST",
         "path": "/api/v1/im/offline-messages/{}/ack"
       },
@@ -5543,28 +5676,28 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_base.py",
         "handler": "create_knowledge_base",
-        "line": 431,
+        "line": 455,
         "method": "POST",
         "path": "/api/v1/knowledge-bases"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_base.py",
         "handler": "upload_document",
-        "line": 537,
+        "line": 565,
         "method": "POST",
         "path": "/api/v1/knowledge-bases/{}/documents"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_base.py",
         "handler": "rag_query",
-        "line": 668,
+        "line": 700,
         "method": "POST",
         "path": "/api/v1/knowledge-bases/{}/rag/query"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_base.py",
         "handler": "reindex_knowledge_base",
-        "line": 704,
+        "line": 736,
         "method": "POST",
         "path": "/api/v1/knowledge-bases/{}/reindex"
       },
@@ -5634,28 +5767,35 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_eval.py",
         "handler": "create_golden_set",
-        "line": 1628,
+        "line": 1651,
         "method": "POST",
         "path": "/api/v1/knowledge/golden-sets"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_eval.py",
         "handler": "create_golden_case",
-        "line": 1697,
+        "line": 1777,
         "method": "POST",
         "path": "/api/v1/knowledge/golden-sets/{}/cases"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_eval.py",
+        "handler": "import_golden_cases",
+        "line": 1865,
+        "method": "POST",
+        "path": "/api/v1/knowledge/golden-sets/{}/cases/import"
+      },
+      {
+        "file": "apps/platform-api/src/workama_platform/modules/knowledge_eval.py",
         "handler": "evaluate_golden_set",
-        "line": 1730,
+        "line": 1949,
         "method": "POST",
         "path": "/api/v1/knowledge/golden-sets/{}/evaluate"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge_eval.py",
         "handler": "export_report",
-        "line": 1928,
+        "line": 2147,
         "method": "POST",
         "path": "/api/v1/knowledge/reports/{}/export"
       },
@@ -5893,28 +6033,28 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "create_conversation",
-        "line": 273,
+        "line": 453,
         "method": "POST",
         "path": "/api/v1/messaging/conversations"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "add_member",
-        "line": 890,
+        "line": 1124,
         "method": "POST",
         "path": "/api/v1/messaging/conversations/{}/members"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "send_message",
-        "line": 381,
+        "line": 561,
         "method": "POST",
         "path": "/api/v1/messaging/conversations/{}/messages"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/messaging.py",
         "handler": "mark_read",
-        "line": 449,
+        "line": 640,
         "method": "POST",
         "path": "/api/v1/messaging/conversations/{}/read"
       },
@@ -6187,7 +6327,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/security_hardening.py",
         "handler": "issue_csrf_token",
-        "line": 921,
+        "line": 938,
         "method": "POST",
         "path": "/api/v1/security/csrf-token"
       },
@@ -6222,7 +6362,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/security_hardening.py",
         "handler": "password_strength_check",
-        "line": 946,
+        "line": 963,
         "method": "POST",
         "path": "/api/v1/security/password/strength-check"
       },
@@ -6439,7 +6579,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/search.py",
         "handler": "unified_search_post",
-        "line": 291,
+        "line": 340,
         "method": "POST",
         "path": "/api/v1/unified-search"
       },
@@ -6586,7 +6726,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "override_approval_timeout",
-        "line": 1837,
+        "line": 1937,
         "method": "POST",
         "path": "/api/v1/workflow-runs/{}/approval-override"
       },
@@ -6600,7 +6740,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "create_workflow",
-        "line": 857,
+        "line": 956,
         "method": "POST",
         "path": "/api/v1/workflows"
       },
@@ -6628,7 +6768,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "run_workflow",
-        "line": 1628,
+        "line": 1728,
         "method": "POST",
         "path": "/api/v1/workflows/{}/runs"
       },
@@ -6642,14 +6782,14 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "validate_workflow",
-        "line": 929,
+        "line": 1029,
         "method": "POST",
         "path": "/api/v1/workflows/{}/validate"
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
         "handler": "rollback_workflow",
-        "line": 951,
+        "line": 1051,
         "method": "POST",
         "path": "/api/v1/workflows/{}/versions/{}/rollback"
       },
@@ -6768,56 +6908,56 @@
       {
         "file": "apps/gateway/internal/server/server.go",
         "handler": "mux.HandleFunc",
-        "line": 135,
+        "line": 136,
         "method": "POST",
         "path": "/v1/audio/speech"
       },
       {
         "file": "apps/gateway/internal/server/server.go",
         "handler": "mux.HandleFunc",
-        "line": 136,
+        "line": 137,
         "method": "POST",
         "path": "/v1/audio/transcriptions"
       },
       {
         "file": "apps/gateway/internal/server/server.go",
         "handler": "mux.HandleFunc",
-        "line": 130,
+        "line": 131,
         "method": "POST",
         "path": "/v1/chat/completions"
       },
       {
         "file": "apps/gateway/internal/server/server.go",
         "handler": "mux.HandleFunc",
-        "line": 132,
+        "line": 133,
         "method": "POST",
         "path": "/v1/embeddings"
       },
       {
         "file": "apps/gateway/internal/server/server.go",
         "handler": "mux.HandleFunc",
-        "line": 134,
+        "line": 135,
         "method": "POST",
         "path": "/v1/images/edits"
       },
       {
         "file": "apps/gateway/internal/server/server.go",
         "handler": "mux.HandleFunc",
-        "line": 133,
+        "line": 134,
         "method": "POST",
         "path": "/v1/images/generations"
       },
       {
         "file": "apps/gateway/internal/server/server.go",
         "handler": "mux.HandleFunc",
-        "line": 137,
+        "line": 138,
         "method": "POST",
         "path": "/v1/responses"
       },
       {
         "file": "apps/gateway/internal/server/server.go",
         "handler": "mux.HandleFunc",
-        "line": 139,
+        "line": 140,
         "method": "POST",
         "path": "/v1/responses/{}/cancel"
       },
@@ -6857,6 +6997,13 @@
         "path": "/api/v1/attachment-uploads/{}/content"
       },
       {
+        "file": "apps/platform-api/src/workama_platform/modules/config_center.py",
+        "handler": "put_values",
+        "line": 561,
+        "method": "PUT",
+        "path": "/api/v1/config/values"
+      },
+      {
         "file": "apps/platform-api/src/workama_platform/modules/knowledge.py",
         "handler": "update_dataset_retrieval_config",
         "line": 1376,
@@ -6866,7 +7013,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/compliance.py",
         "handler": "put_region_policy",
-        "line": 401,
+        "line": 400,
         "method": "PUT",
         "path": "/api/v1/enterprise/compliance/region-policy"
       },
@@ -6880,7 +7027,7 @@
       {
         "file": "apps/platform-api/src/workama_platform/modules/compliance.py",
         "handler": "put_subprocessor",
-        "line": 505,
+        "line": 504,
         "method": "PUT",
         "path": "/api/v1/enterprise/compliance/subprocessors/{}"
       },
@@ -6951,7 +7098,7 @@
     "tables": [
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 1005,
+        "line": 1152,
         "name": "ag_approval"
       },
       {
@@ -6966,7 +7113,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 529,
+        "line": 676,
         "name": "ag_artifact_share"
       },
       {
@@ -6981,7 +7128,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 522,
+        "line": 669,
         "name": "ag_attachment_upload"
       },
       {
@@ -7106,7 +7253,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 1344,
+        "line": 1491,
         "name": "ag_memory"
       },
       {
@@ -7191,7 +7338,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 1017,
+        "line": 1164,
         "name": "ag_tool_grant"
       },
       {
@@ -7206,7 +7353,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 773,
+        "line": 920,
         "name": "bill_credit_grant"
       },
       {
@@ -7296,7 +7443,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 821,
+        "line": 968,
         "name": "bill_reconciliation_run"
       },
       {
@@ -7316,7 +7463,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 755,
+        "line": 902,
         "name": "bill_reservation"
       },
       {
@@ -7346,12 +7493,12 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 834,
+        "line": 981,
         "name": "bill_usage_export"
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 807,
+        "line": 954,
         "name": "bill_usage_hourly"
       },
       {
@@ -7381,7 +7528,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 698,
+        "line": 845,
         "name": "gw_model_mapping"
       },
       {
@@ -7461,7 +7608,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 718,
+        "line": 865,
         "name": "gw_token_group"
       },
       {
@@ -7486,7 +7633,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 913,
+        "line": 1060,
         "name": "id_auth_token"
       },
       {
@@ -7511,7 +7658,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 949,
+        "line": 1096,
         "name": "id_data_request_step"
       },
       {
@@ -7521,7 +7668,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 960,
+        "line": 1107,
         "name": "id_deletion_tombstone"
       },
       {
@@ -7661,7 +7808,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 926,
+        "line": 1073,
         "name": "id_mfa_factor"
       },
       {
@@ -7671,7 +7818,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 1049,
+        "line": 1196,
         "name": "id_notification"
       },
       {
@@ -7681,7 +7828,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 1065,
+        "line": 1212,
         "name": "id_notification_delivery"
       },
       {
@@ -7766,7 +7913,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 971,
+        "line": 1118,
         "name": "id_processing_activity"
       },
       {
@@ -7851,7 +7998,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 591,
+        "line": 738,
         "name": "ops_async_operation"
       },
       {
@@ -7886,7 +8033,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 550,
+        "line": 697,
         "name": "ops_dynamic_config"
       },
       {
@@ -7896,7 +8043,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 560,
+        "line": 707,
         "name": "ops_event_catalog"
       },
       {
@@ -7906,7 +8053,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 539,
+        "line": 686,
         "name": "ops_feature_flag"
       },
       {
@@ -7916,7 +8063,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 855,
+        "line": 1002,
         "name": "ops_inbox"
       },
       {
@@ -7926,7 +8073,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 604,
+        "line": 751,
         "name": "ops_job"
       },
       {
@@ -7936,7 +8083,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 627,
+        "line": 774,
         "name": "ops_job_dlq"
       },
       {
@@ -7946,7 +8093,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 620,
+        "line": 767,
         "name": "ops_job_run"
       },
       {
@@ -7956,22 +8103,22 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 672,
+        "line": 819,
         "name": "ops_lifecycle_policy"
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 679,
+        "line": 826,
         "name": "ops_lifecycle_run"
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 663,
+        "line": 810,
         "name": "ops_notification_template"
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 584,
+        "line": 731,
         "name": "ops_outbox"
       },
       {
@@ -7986,7 +8133,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 566,
+        "line": 713,
         "name": "ops_product_event"
       },
       {
@@ -7996,7 +8143,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 574,
+        "line": 721,
         "name": "ops_release_evidence"
       },
       {
@@ -8006,7 +8153,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 634,
+        "line": 781,
         "name": "ops_search_document"
       },
       {
@@ -8016,12 +8163,12 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 648,
+        "line": 795,
         "name": "ops_workspace_export"
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 655,
+        "line": 802,
         "name": "ops_workspace_import"
       },
       {
@@ -8061,7 +8208,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
-        "line": 149,
+        "line": 237,
         "name": "pf_app_run"
       },
       {
@@ -8071,7 +8218,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
-        "line": 170,
+        "line": 258,
         "name": "pf_app_run_event"
       },
       {
@@ -8081,7 +8228,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
-        "line": 113,
+        "line": 201,
         "name": "pf_assistant"
       },
       {
@@ -8091,7 +8238,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
-        "line": 129,
+        "line": 217,
         "name": "pf_assistant_version"
       },
       {
@@ -8101,7 +8248,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 1143,
+        "line": 1290,
         "name": "pf_chunk"
       },
       {
@@ -8156,27 +8303,27 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 1081,
+        "line": 1228,
         "name": "pf_dataset"
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 1116,
+        "line": 1263,
         "name": "pf_document"
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 1194,
+        "line": 1341,
         "name": "pf_eval_case"
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 1214,
+        "line": 1361,
         "name": "pf_eval_run"
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 1172,
+        "line": 1319,
         "name": "pf_eval_set"
       },
       {
@@ -8206,7 +8353,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 1100,
+        "line": 1247,
         "name": "pf_index_generation"
       },
       {
@@ -8281,7 +8428,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 1233,
+        "line": 1380,
         "name": "pf_rag_feedback"
       },
       {
@@ -8306,7 +8453,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
-        "line": 183,
+        "line": 271,
         "name": "pf_workflow"
       },
       {
@@ -8316,7 +8463,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
-        "line": 221,
+        "line": 309,
         "name": "pf_workflow_event"
       },
       {
@@ -8326,7 +8473,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
-        "line": 199,
+        "line": 287,
         "name": "pf_workflow_run"
       },
       {
@@ -8336,7 +8483,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/modules/workflows.py",
-        "line": 234,
+        "line": 322,
         "name": "pf_workflow_version"
       },
       {
@@ -8366,7 +8513,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 1038,
+        "line": 1185,
         "name": "sec_eval_run"
       },
       {
@@ -8386,7 +8533,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 687,
+        "line": 834,
         "name": "sec_legal_hold"
       },
       {
@@ -8401,7 +8548,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 995,
+        "line": 1142,
         "name": "sec_moderation_log"
       },
       {
@@ -8431,7 +8578,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 981,
+        "line": 1128,
         "name": "sec_policy"
       },
       {
@@ -8451,7 +8598,7 @@
       },
       {
         "file": "apps/platform-api/src/workama_platform/core.py",
-        "line": 1027,
+        "line": 1174,
         "name": "sec_prompt_version"
       },
       {

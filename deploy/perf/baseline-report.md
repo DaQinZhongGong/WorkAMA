@@ -666,3 +666,116 @@ docker run --rm --network=workama_default -v "${PWD}/deploy/perf/k6:/scripts" -w
 对照 §10.13（20 VU × 120s）chat p99=14.26ms：本轮鉴权改为常量时间比较后无回归，余量约 2.2×。短窗 25s 曾把同一栈的 chat p99 抬到 111ms，已证明是样本不足而非服务端回退。
 
 **验证状态**：gateway 容器 `go test -mod=vendor`（cmd/gateway + token + middleware + server）通过；`test_gate_p99.py` 8 项通过；活体鉴权 200/401/401/401；`make perf-gate` 口径长窗 PASS。证据 `deploy/perf/out/perf-gate-latest.json`（不入仓）。**status=candidate，GA 须人工签字。**
+
+## 10.15 全栈密钥启动期拒绝 + secret-gate 扫描（status=candidate，已 GA 签字框架外、待人工审核提交）
+
+**背景**：§10.14 仅把 `INTERNAL_TOKEN` 硬化到网关。JWT/加密类密钥（`JWT_SECRET` / `KEY_PEPPER` / `ENCRYPTION_KEY` / platform-api `internal_token`）在 `core.py` 与 compose 中仍有弱默认/占位符回退，生产若未覆盖即带弱密钥启动。本轮把"启动期拒绝弱密钥"从网关推广到 platform-api，并新增 `secret-gate` 扫描器作为 CI 第一道防线（用户已签字授权全权处理；按新约束：验证无误文件 `git add` 暂存、**不提交不推送**，待人工审核）。
+
+**本轮落地（candidate，已暂存未提交）**：
+
+1. **platform-api 生产密钥校验**：`core.py` 新增 `validate_production_secrets(s=None)`。production 下拒绝占位符 / 弱 `JWT_SECRET`（<16）、`KEY_PEPPER`（<16）、`INTERNAL_TOKEN`（<16），以及空 / 已知弱 base64 默认值 `QkJC...=` / 非法 Fernet 的 `ENCRYPTION_KEY`。`main.py` lifespan 起始（pool.open 之前）调用——弱密钥直接阻断启动。`tests/test_secret_validation.py` 11 例覆盖 强/开发豁免/各占位符/短密钥/弱加密/多问题聚合。
+2. **网关 KEY_PEPPER / ENCRYPTION_KEY 生产拒绝**：`main.go` 新增 `resolveKeyPepper()` / `resolveEncryptionKey()`（与 `resolveInternalToken` 同构，`isProductionEnv` 门控）。占位符 / 弱默认值 / 非法 Fernet **仅 production 拒绝**，development 保留对弱默认的容忍（修复了初版"全环境拒弱加密默认"导致 dev 栈网关退出的回归）。`wireDirectPipeline` 改为接收已校验的 pepper/encryptionKey（去除源码 fallback）。`main_test.go` 覆盖 dev 容忍 / production 拒绝各路径。
+3. **tools/secret-gate.py（新增）**：扫描 `git ls-files`，allowlist 跳过 `.env.example`/helm `values`/`examples`/`tests`/`docs`/`tools`/二进制。仅抓**真实泄漏**：① 真实 `.env` 被跟踪；② AWS `AKIA…`；③ OpenAI `sk-` 长密钥（非测试赋值）；④ 非测试源码里高熵真密钥硬编码（排除已知安全占位符集）。文档化占位符（change-this-*、QkJC…=）属安全设计、不在源码泄漏范畴，故不报。Makefile 新增 `secret-gate` target。
+
+**Docker 验证矩阵（全部通过）**：
+
+| 验证 | 命令/位置 | 结果 |
+| --- | --- | --- |
+| platform-api 单测 | `pytest tests/test_secret_validation.py` | **12 passed** |
+| 网关 Go 单测 | `go test -mod=vendor ./cmd/gateway` | **ok** |
+| secret-gate 扫描 | `python tools/secret-gate.py`（2624 文件） | **PASS**（无真实泄漏） |
+| [A] platform-api 生产拒绝 | 容器内 `validate_production_secrets()` + `WORKAMA_ENV=production` + 全弱密钥 | **EXIT=1**，列出 JWT_SECRET/KEY_PEPPER/INTERNAL_TOKEN/ENCRYPTION_KEY 四项 |
+| [B] platform-api 生产接受 | 同上加强密钥 | **EXIT=0**，`OK_PROD_SECRETS_ACCEPTED` |
+| [C] 网关生产拒绝（占位 pepper） | `run --rm gateway` + `WORKAMA_ENV=production` + `KEY_PEPPER=change-this-key-pepper` | **EXIT=1**，`key pepper configuration rejected` |
+| [D] 网关生产拒绝（弱加密） | 同上 + `ENCRYPTION_KEY=QkJC...=` | **EXIT=1**，`encryption key configuration rejected` |
+| dev 栈回归 | 重建 `workama-gateway-1`（镜像含本轮代码） | **healthy**，dev 容忍弱默认，未破坏现有栈 |
+
+**关键修正**：初版 `resolveEncryptionKey` 对弱默认 `QkJC...=`（compose dev 回退值）做**全环境拒绝**，导致 development 栈网关启动即退出。改为仅 `isProductionEnv` 门控后，dev 栈恢复 healthy，production 仍拒绝（[D] 证明）。
+
+**git 处理（按用户约束）**：7 个文件已 `git add` 暂存（`M` Makefile / core.py / main.py / gateway main.go / main_test.go；`A` test_secret_validation.py / secret-gate.py），**未 commit 未 push**。工作树无其它未跟踪产物，`.gitignore` 现状已正确忽略 `.env`/`.env.*`（仅放行模板）。历史提交 `de0edc9` 仍含旧 `.env.dev` 内容，需 `git filter-repo` 改写历史——属破坏性操作且需强推，**待你确认后单独处理**（本轮不触碰）。
+
+**验证状态**：上表 8 项全绿；运行栈 16 服务 healthy。**status=candidate，待人工审核提交（GA 签字框架外）。**
+
+## 10.16 网关 staging 真实-LLM 覆盖渠道：修复 + 验证（status=candidate，已暂存未提交）
+
+**背景**：承接 §10.15 待办「真实 LLM 渠道端到端口径」。工作区存在半成品 staging 覆盖渠道（优先于 DB 渠道、失败回退），但单测失败、未验证。
+
+**根因（两处真实 bug）**：① 测试二进制未 blank-import `adapter/openai`，`ResolveAdapter` 返回 errUnknownProvider → 全部上游 continue → 502；② staging 为 primary 时 `attempts` 丢弃 DB 候选且回退无 mock 处理；③ `StagingChannel.Provider` 写死字面 "staging" 不可解析。
+
+**修复（apps/gateway）**：`StagingChannel` 增 `Provider` 并以 `cfg.Provider` 注入；mock 处理抽 `handleMockChannel` 助手供 primary/回退共用；staging 为 primary 时追加 DB 路由结果作回退。新增 `tools/mock_llm_upstream.py`（OpenAI 兼容 mock 上游，验证夹具非真实 LLM）。
+
+**验证（docker，全绿）**：`golang:1.26-alpine GOWORK=off -mod=vendor go test ./...` 全包 ok（含 3 个新 staging 测试）；生产构建 `CGO_ENABLED=0 -tags=pgx -mod=vendor` ok；`docker build apps/gateway` RC=0；容器冒烟 `gateway --help` 因缺 INTERNAL_TOKEN 启动期拒绝（安全门禁生效）。契约/文档/open-platform 门禁单测 PASS，live 脚本因外部 `WorkAMA-Docs` 仓缺失报 pending_external（§6 已知边界）。
+
+**git 状态**：4 文件已 `git add` 暂存（M chat_completions.go / main.go；A chat_completions_test.go / mock_llm_upstream.py），未提交未推送。
+
+## 10.17 配置中心：可视化配置取代 .env（UI 优先级最高、实时热生效）（status=candidate）
+
+**目标**：所有可运维配置经可视化控制台管理，优先级 **DB(UI) > ENV > 代码默认**，写入即热生效；`.env` 仅保留引导期基础设施（DSN / 密钥材料 / 服务地址），生产部署侧经 secret manager 注入。
+
+**本轮落地（candidate）**：
+
+1. **后端配置中心**（`modules/config_center.py` + lifespan 接线）：声明式 SCHEMA 目录（12 分组 ~50 键）；`config_settings/config_history/config_revision` 三表（幂等建表）；PUT 批量发布（校验→密钥 Fernet 加密落库→逐键审计→全量快照→版本号发布→热覆盖 settings 单例）；GET schema/values（来源判别 db/env/default + 密钥掩码 + secret_set）；GET history/revisions；POST rollback（快照恢复+新 revision）；POST test（host:port TCP 连通性探测）；DELETE values/{key}（删除 UI 覆盖回落 ENV/默认——本轮补齐的生产级缺口）；GET /internal/config/export（内部权威视图，密钥永不导出，供网关等轮询消费）。
+2. **跨进程热收敛 watcher**：Granian 多 worker 下 PUT 只落在单进程。新增 `config_watcher_loop()`（Redis 版本号轮询 ≤1s，异常吞掉不拖垮主循环），接入 platform-api lifespan、platform-worker、rag-worker 三入口——任意进程发布，其余进程 ≤1s 收敛。
+3. **删除覆盖回落修复**：`load_and_apply_config_overrides()` 应用前先恢复基线快照再叠加 DB 行，消除"删除覆盖后旧值残留进程"的真实 bug（由 delete 单测暴露并回归锁定）。
+4. **前端配置控制台**（`/admin/platform-config`，第 25 个 admin 页）：分组 tab + 字段级来源徽标（UI 配置/ENV/默认）、需重启徽标、未保存标记、密钥掩码语义（设置/修改/取消 + 已设置徽标）、组内搜索过滤、连接测试按钮、发布计数与热生效/需重启通知、变更历史与一键回滚（确认弹窗）；beforeunload 未保存守卫；全量 i18n（zh/en 各 ~48 键）。修复切分组重拉清空草稿的 UX 缺陷。
+5. **前端基建修复**（HEAD 既有回归，本轮顺带收口）：web 构建 tsc 失败（admin-dashboard GETTING_STARTED 无类型标注、AdminCreateForm submitLabel、新页面 errorText 误用）全部修复；LocaleProvider 新增显式 `initialLocale` prop；vitest setup 固定 zh-CN 语言环境（jsdom 默认 en-US 导致 18 例文案断言漂移）；断言英文的 3 个测试文件显式钉 en-US。i18n 覆盖快照 24→25 页。
+
+**活体 E2E（docker 栈，全通过）**：登录 owner → PUT（限流 61 + SMTP 密钥）revision=5 热生效 source=db、密钥 API 全链路掩码 secret_set=true → history/revisions 记录完整 → rollback 至 rev4 恢复快照值 → DELETE 两键 deleted=true 回落 default(60)/secret_set=false → `/internal/config/export` 34 键无任何密钥 → 非 admin 401。RBAC：owner/admin 可写，普通 JWT 401/403。
+
+**验证矩阵**：
+
+| 验证 | 结果 |
+| --- | --- |
+| platform-api 全量 pytest | **3655 passed / 20 skipped**（含 config_center 13 例：校验/编解码/优先级/发布回滚/KEEP 哨兵/watcher 收敛/故障容忍/delete 回落/密钥掩码历史） |
+| web tsc（镜像构建内含） | **绿**（workama-web:latest 构建成功） |
+| web vitest | **231 passed / 231**（新增 admin-platform-config-page 5 例：渲染/保存 payload/密钥哨兵/搜索空态/回滚流） |
+| contract registry / docs-consistency / open-platform gate 单测 | **9 tests OK**；live 检查依赖外部 WorkAMA-Docs 仓（缺失，pending_external） |
+| runtime-surface 同步 | `tools/runtime_surface_sync.py --write` 重生成（含 config 路由） |
+| secret-gate | **PASS**（2635 tracked 文件无真实泄漏） |
+| port-policy | **findings=[]** |
+| make smoke（login/chat/ws/completions） | **全绿** |
+
+**诚实边界**：① 引导期基础设施（DATABASE_URL/REDIS_URL/NATS_URL/JWT_SECRET/KEY_PEPPER/ENCRYPTION_KEY/INTERNAL_TOKEN 及各进程服务地址）属 restart_required 类——UI 可改可存为权威值，但运行期连接池/Fernet 实例不重建，重启后生效（schema 显式标记，UI 提示）；生产部署仍必须经 secret manager 注入真值，运行时启动期拒绝占位符（§10.15）。② Go 网关请求期参数本就 DB 化（渠道/token RPM 从 pg 直读），无需 env 热更；网关 bootstrap env 属上述 restart 类边界。③ Redis 版本号为通知令牌而非持久序列（Redis 清空自动从 0 重建，不影响正确性）。
+
+**git 状态（按用户约束）**：验证无误文件分批 `git add` 暂存、不 commit 不 push，待人工审核。
+
+**status=candidate，GA 待人工签字。**
+
+## 10.18 配置中心→网关热下发 + Compose 生产化加固（status=candidate）
+
+**目标**：把「可视化配置、UI 优先级最高、实时生效」延伸到最后一个非 DB 化的运行时面（Go 网关），并补齐 compose 栈的生产运行基线。
+
+**本轮落地（candidate）**：
+
+1. **配置中心新增 LLM 覆盖渠道分组**（`llm_staging_*` 五键，密钥 Fernet 落库）；`/internal/config/export` 扩展 `secrets` 字段——库内加密密钥以 **Fernet 密文原样**下发（明文永不导出），消费方用同一 ENCRYPTION_KEY 解密。单测锁定「明文不出现在导出视图」。
+2. **Go 网关 configsync 包**：按版本轮询导出视图（2s；失败指数退避 ≤8×，恢复即回常规），version 变化触发回调；`ChatHandler.staging` 改为 `atomic.Pointer[adapter.Channel]`——修复裸字段在轮询协程/请求协程并发读写的数据竞争；`store/pg.DecryptFernetToken` 导出复用字节级兼容解密实现。`applyStagingFromSnapshot`：enabled=false / provider 缺失 / 密钥缺失或解密失败 → 热清除回退 DB 渠道；否则热应用。UI 快照优先级高于 `LLM_STAGING_*` env 启动注入。
+3. **Compose 生产化加固**：
+   - 全部 17 服务 `restart: unless-stopped` + 统一日志轮转锚点（json-file 10m×3，防磁盘失控）；
+   - 补齐 web（vite preview wget）与 minio（health/live curl）healthcheck；
+   - 新增 `docker-compose.prod.yml` override：安全关键变量全部 `${VAR:?msg}` 插值，**缺失即解析期失败**（fail-fast），并显式置 `WORKAMA_ENV=production`；
+   - 新增 `deploy/compose/.env.production.template`（REQUIRED/推荐分区 + Fernet key 生成命令）与 `tools/prod_env_check.py` 预检（占位符/弱默认/长度/Fernet 合法性逐项拦截）+ 6 例单测；
+   - Makefile 新增 `prod-check` / `prod-up` / `prod-down`（预检不过不拉起）。
+4. **mock-llm compose 服务**（profile `mock-llm`，端口 20250 合规）：OpenAI 兼容 mock 上游进栈，本地可复现「真实 HTTP 上游」验证。
+
+**活体 E2E（docker 全栈，A/B 因果对照）**：
+- [发布] 控制台 API 发布 llm_staging_*（base_url=http://mock-llm:9101/v1，密钥 sk-test-e2e-9183）→ rev=9；
+- [A ON] ≤4s 内网关日志 `staging override applied from config center (version=1)`；经 :20202 `/v1/chat/completions`（内部令牌路径）请求 → **真实 HTTP mock 上游回包** `mock-upstream reply to ... (echo model=...)`；
+- [B OFF] UI 关闭 enabled → 同一请求 4s 后变为 `E01006 No channel`（覆盖已热清除、该工作区无 DB 渠道，符合设计）；
+- 再开再关重复一次结果一致；清理：删除 llm_staging_api_key 覆盖、停掉 mock-llm 容器。
+- prod fail-fast：缺 INTERNAL_TOKEN 的 env → `docker compose -f base -f prod config` 解析期报错退出；齐全强值 env → 渲染成功且 4 个服务 WORKAMA_ENV=production；弱值 env → prod-env-check 逐项 FAIL（RC=1）、强值 PASS。
+
+**验证矩阵**：
+
+| 验证 | 结果 |
+| --- | --- |
+| platform-api 全量 pytest | **3656 passed / 20 skipped**（+1 export 密文用例；config_center 共 14 例） |
+| gateway go test ./... | **14 包全 ok**（含 configsync 5 例：解密/鉴权/版本去重/故障恢复/无密钥跳过） |
+| gateway 镜像重建 | workama-gateway:latest 构建成功，容器 healthy |
+| secret-gate | **PASS**（2640 文件） |
+| port-policy | **findings=[]**（20250 ∈ [20200,20299]） |
+| contract/docs/open-platform 单测 | **9 tests OK**（live 部分仍 pending_external：外部 WorkAMA-Docs 仓缺失） |
+| make smoke | completion_ok=true, websocket_ok=true |
+
+**诚实边界**：① staging 渠道语义为「优先尝试、失败回退 DB 渠道」，上游真实第三方 provider（OpenAI 等）执行仍属 pending_external；② configsync 仅消费 llm_staging_*（网关其余参数本就 DB 化或属 restart_required 引导期边界）；③ Redis version=0 的首次快照会触发一次「清除」回调（幂等，无行为影响）。
+
+**git 状态**：验证无误文件分批 `git add` 暂存，未 commit 未 push。**status=candidate，GA 待人工签字。**

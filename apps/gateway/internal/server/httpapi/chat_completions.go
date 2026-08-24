@@ -19,6 +19,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -71,6 +72,10 @@ type ChatHandler struct {
 	Meter     *middleware.MeterMiddleware
 	Logger    *slog.Logger
 	HTTP      *http.Client
+	// staging 是可选的真实 LLM 覆盖渠道（配置中心 llm_staging_* 经 configsync
+	// 热下发，或 LLM_STAGING_* env 启动注入）。非 nil 时先于 DB 渠道尝试、失败
+	// 回退 DB 候选。atomic.Pointer 保证配置轮询协程与请求协程并发读写安全。
+	staging atomic.Pointer[adapter.Channel]
 }
 
 // NewChat constructs a ChatHandler with the given dependencies.
@@ -100,6 +105,41 @@ func NewChat(
 		Logger:    logger,
 		HTTP:      &http.Client{Timeout: 2 * time.Minute},
 	}
+}
+
+// StagingChannel describes the LLM_STAGING_* real-LLM override channel.
+// It mirrors the legacy internal/adapter.StagingConfig without importing the
+// legacy package, keeping the pg direct pipeline free of cross-adapter deps.
+type StagingChannel struct {
+	// Provider 是真实 LLM 供应商（如 "openai" / "openai-compatible" / "azure"），
+	// 用于解析对应的适配器工厂；与 gw_channel 表里的 Provider 语义一致。
+	Provider string
+	BaseURL  string
+	APIKey   string
+	Model    string
+}
+
+// SetStaging installs (or clears, when cfg is nil) the staging override
+// channel. It is tried before DB channels, keeping llm_staging_* semantics
+// identical to the legacy server.dispatchChat path under the pg direct
+// pipeline. 并发安全：配置同步协程可在请求处理过程中随时热更新。
+func (h *ChatHandler) SetStaging(cfg *StagingChannel) {
+	if cfg == nil {
+		h.staging.Store(nil)
+		return
+	}
+	h.staging.Store(&adapter.Channel{
+		ID:            "staging",
+		Provider:      cfg.Provider,
+		BaseURL:       cfg.BaseURL,
+		APIKey:        cfg.APIKey,
+		UpstreamModel: cfg.Model,
+	})
+}
+
+// currentStaging 返回当前生效的覆盖渠道快照（可能为 nil）。
+func (h *ChatHandler) currentStaging() *adapter.Channel {
+	return h.staging.Load()
 }
 
 // ChatRequest is the OpenAI-compatible chat completion request body.
@@ -162,92 +202,146 @@ func (h *ChatHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, requestID, tok, started, http.StatusServiceUnavailable, CodeGatewayError, "Failed to list channels")
 		return
 	}
-	if len(channels) == 0 {
+	// 过滤被熔断的渠道
+	candidates := h.filterOpen(channels)
+	if len(candidates) == 0 && h.currentStaging() == nil {
 		h.fail(w, r, requestID, tok, started, http.StatusNotFound, CodeNoChannel, "No channel is available for this model")
 		return
 	}
-	// 过滤被熔断的渠道
-	candidates := h.filterOpen(channels)
-	if len(candidates) == 0 {
-		h.fail(w, r, requestID, tok, started, http.StatusServiceUnavailable, CodeGatewayError, "All channels are circuit-broken")
-		return
+	// staging 覆盖渠道（配置中心 llm_staging_* / LLM_STAGING_*）优先于 DB 渠道；
+	// 被熔断时清除，回退 DB 候选，与 server.dispatchChat 旧路径语义一致。
+	if st := h.currentStaging(); st != nil && !h.Breaker.Allow(st.ID) {
+		h.staging.Store(nil)
 	}
 	rt := toRoutingToken(tok)
-	// ⑦路由：选出主渠道
-	primary, err := h.Router.SelectChannel(r.Context(), candidates, rt)
+	primary, err := h.selectPrimary(r.Context(), candidates, rt)
 	if err != nil {
 		h.fail(w, r, requestID, tok, started, http.StatusServiceUnavailable, CodeGatewayError, "Routing failed: "+err.Error())
 		return
 	}
 
 	// ⑧ mock provider：直接返回确定性响应，不发起上游调用（v7.265）。
-	// 与 server 包旧路径保持同一 mock 语义；计量/日志走同一管线。
-	if primary.Provider == "mock" {
-		promptTokens := estimateTokens(messagesText(&body))
-		if toolCall := mockToolRequest(&body); toolCall != nil {
-			if body.Stream {
-				h.streamMockToolCall(w, requestID, body.Model, toolCall)
-			} else {
-				writeJSON(w, http.StatusOK, map[string]any{
-					"id": requestID, "object": "chat.completion", "created": time.Now().Unix(), "model": body.Model,
-					"choices": []map[string]any{{"index": 0, "message": map[string]any{"role": "assistant", "content": nil, "tool_calls": []any{toolCall}}, "finish_reason": "tool_calls"}},
-					"usage":   map[string]int{"prompt_tokens": promptTokens, "completion_tokens": 1, "total_tokens": promptTokens + 1},
-				})
-			}
-			h.Breaker.Record(primary.ID, false)
-			h.recordMeter(r.Context(), requestID, tok, primary, body.Model, &adapter.Usage{PromptTokens: promptTokens, CompletionTokens: 1, TotalTokens: promptTokens + 1}, time.Since(started).Milliseconds(), http.StatusOK, "")
+	// primary 为 mock 渠道（无 staging 覆盖时的常见路径）时直接处理。
+	if h.handleMockChannel(w, r, requestID, &body, primary, tok, started) {
+		return
+	}
+
+	// ⑧转发：staging 覆盖渠道优先，失败自动回退 DB 候选（与 server 包旧路径一致）
+	unified := toUnifiedRequest(&body)
+	attempts := make([]*adapter.Channel, 0, 2)
+	if st := h.currentStaging(); st != nil {
+		attempts = append(attempts, st)
+	}
+	if primary != nil && primary.ID != "staging" {
+		// primary 已是 DB 渠道（无 staging 覆盖，或 staging 被熔断）
+		attempts = append(attempts, primary)
+	} else if len(candidates) > 0 {
+		// staging 作为 primary 时，把 DB 路由结果作为回退候选追加
+		if db, derr := h.Router.SelectChannel(r.Context(), candidates, rt); derr == nil {
+			attempts = append(attempts, db)
+		}
+	}
+	var lastStatus int
+	for _, target := range attempts {
+		if !h.Breaker.Allow(target.ID) {
+			continue
+		}
+		// 回退到 mock 渠道时返回确定性响应（与 primary 路径一致）
+		if h.handleMockChannel(w, r, requestID, &body, target, tok, started) {
 			return
 		}
-		reply := mockReply(body.Messages)
-		completionTokens := estimateTokens(reply)
+		adp, err := adapter.ResolveAdapter(target.Provider)
+		if err != nil {
+			h.Breaker.Record(target.ID, true)
+			h.Logger.Warn("gateway channel failed, trying next candidate", "request_id", requestID, "channel_id", target.ID, "error", err.Error())
+			continue
+		}
+		upstreamReq, err := adp.BuildRequest(r.Context(), unified, target)
+		if err != nil {
+			h.Breaker.Record(target.ID, true)
+			h.Logger.Warn("gateway channel failed, trying next candidate", "request_id", requestID, "channel_id", target.ID, "error", err.Error())
+			continue
+		}
+		resp, err := h.HTTP.Do(upstreamReq)
+		if err != nil {
+			lastStatus = http.StatusBadGateway
+			h.Breaker.Record(target.ID, true)
+			h.Logger.Warn("gateway channel failed, trying next candidate", "request_id", requestID, "channel_id", target.ID, "error", err.Error())
+			continue
+		}
+		if shouldFailover(resp.StatusCode) {
+			lastStatus = resp.StatusCode
+			_ = resp.Body.Close()
+			h.Breaker.Record(target.ID, true)
+			h.Logger.Warn("gateway channel failed, trying next candidate", "request_id", requestID, "channel_id", target.ID, "status", resp.StatusCode)
+			continue
+		}
+		// ⑧转发 + ⑩计量：根据 stream 选择透传或一次性解析
 		if body.Stream {
-			h.streamMock(w, r, requestID, body.Model, reply)
+			h.streamResponse(w, r, resp, adp, target, requestID, tok, body.Model, started)
+		} else {
+			h.nonStreamResponse(w, r, resp, adp, target, requestID, tok, body.Model, started)
+		}
+		return
+	}
+	h.fail(w, r, requestID, tok, started, lastStatusOr(lastStatus, http.StatusBadGateway), CodeUpstreamStatus, fmt.Sprintf("All upstream channels failed (last HTTP %d)", lastStatus))
+}
+
+// selectPrimary returns the staging override channel when enabled and open,
+// otherwise delegates to the weighted router over DB candidates.
+func (h *ChatHandler) selectPrimary(ctx context.Context, candidates []adapter.Channel, rt *routing.Token) (*adapter.Channel, error) {
+	if st := h.currentStaging(); st != nil && h.Breaker.Allow(st.ID) {
+		return st, nil
+	}
+	if len(candidates) == 0 {
+		return nil, routing.ErrNoChannels
+	}
+	return h.Router.SelectChannel(ctx, candidates, rt)
+}
+
+func lastStatusOr(status, fallback int) int {
+	if status != 0 {
+		return status
+	}
+	return fallback
+}
+
+// handleMockChannel 处理 mock 供应商渠道：直接返回确定性响应，不发起任何上游调用。
+// 同时服务于 primary 路径与 staging→DB 回退路径。返回 true 表示已处理并写入响应
+// （调用方应直接 return）；返回 false 表示该渠道不是 mock，需继续走转发逻辑。
+func (h *ChatHandler) handleMockChannel(w http.ResponseWriter, r *http.Request, requestID string, body *ChatRequest, target *adapter.Channel, tok *token.Token, started time.Time) bool {
+	if target == nil || target.Provider != "mock" {
+		return false
+	}
+	promptTokens := estimateTokens(messagesText(body))
+	if toolCall := mockToolRequest(body); toolCall != nil {
+		if body.Stream {
+			h.streamMockToolCall(w, requestID, body.Model, toolCall)
 		} else {
 			writeJSON(w, http.StatusOK, map[string]any{
 				"id": requestID, "object": "chat.completion", "created": time.Now().Unix(), "model": body.Model,
-				"choices": []map[string]any{{"index": 0, "message": map[string]string{"role": "assistant", "content": reply}, "finish_reason": "stop"}},
-				"usage":   map[string]int{"prompt_tokens": promptTokens, "completion_tokens": completionTokens, "total_tokens": promptTokens + completionTokens},
+				"choices": []map[string]any{{"index": 0, "message": map[string]any{"role": "assistant", "content": nil, "tool_calls": []any{toolCall}}, "finish_reason": "tool_calls"}},
+				"usage":   map[string]int{"prompt_tokens": promptTokens, "completion_tokens": 1, "total_tokens": promptTokens + 1},
 			})
 		}
-		h.Breaker.Record(primary.ID, false)
-		h.recordMeter(r.Context(), requestID, tok, primary, body.Model, &adapter.Usage{PromptTokens: promptTokens, CompletionTokens: completionTokens, TotalTokens: promptTokens + completionTokens}, time.Since(started).Milliseconds(), http.StatusOK, "")
-		return
+		h.Breaker.Record(target.ID, false)
+		h.recordMeter(r.Context(), requestID, tok, target, body.Model, &adapter.Usage{PromptTokens: promptTokens, CompletionTokens: 1, TotalTokens: promptTokens + 1}, time.Since(started).Milliseconds(), http.StatusOK, "")
+		return true
 	}
-
-	// ⑧转发：构造 UnifiedRequest 并调用适配器
-	adp, err := adapter.ResolveAdapter(primary.Provider)
-	if err != nil {
-		h.fail(w, r, requestID, tok, started, http.StatusBadGateway, CodeGatewayError, "Unsupported provider: "+primary.Provider)
-		return
-	}
-	unified := toUnifiedRequest(&body)
-	upstreamReq, err := adp.BuildRequest(r.Context(), unified, primary)
-	if err != nil {
-		h.fail(w, r, requestID, tok, started, http.StatusBadGateway, CodeUpstreamError, "Failed to build upstream request")
-		return
-	}
-
-	// 执行上游请求
-	resp, err := h.HTTP.Do(upstreamReq)
-	if err != nil {
-		h.Breaker.Record(primary.ID, true)
-		h.fail(w, r, requestID, tok, started, http.StatusBadGateway, CodeUpstreamError, "Upstream connection error: "+err.Error())
-		return
-	}
-	defer resp.Body.Close()
-
-	if shouldFailover(resp.StatusCode) {
-		h.Breaker.Record(primary.ID, true)
-		h.fail(w, r, requestID, tok, started, resp.StatusCode, CodeUpstreamStatus, fmt.Sprintf("Upstream returned HTTP %d", resp.StatusCode))
-		return
-	}
-
-	// ⑧转发 + ⑩计量：根据 stream 选择透传或一次性解析
+	reply := mockReply(body.Messages)
+	completionTokens := estimateTokens(reply)
 	if body.Stream {
-		h.streamResponse(w, r, resp, adp, primary, requestID, tok, body.Model, started)
-		return
+		h.streamMock(w, r, requestID, body.Model, reply)
+	} else {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"id": requestID, "object": "chat.completion", "created": time.Now().Unix(), "model": body.Model,
+			"choices": []map[string]any{{"index": 0, "message": map[string]string{"role": "assistant", "content": reply}, "finish_reason": "stop"}},
+			"usage":   map[string]int{"prompt_tokens": promptTokens, "completion_tokens": completionTokens, "total_tokens": promptTokens + completionTokens},
+		})
 	}
-	h.nonStreamResponse(w, r, resp, adp, primary, requestID, tok, body.Model, started)
+	h.Breaker.Record(target.ID, false)
+	h.recordMeter(r.Context(), requestID, tok, target, body.Model, &adapter.Usage{PromptTokens: promptTokens, CompletionTokens: completionTokens, TotalTokens: promptTokens + completionTokens}, time.Since(started).Milliseconds(), http.StatusOK, "")
+	return true
 }
 
 // nonStreamResponse handles a non-streaming upstream response.

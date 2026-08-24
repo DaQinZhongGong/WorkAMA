@@ -107,18 +107,18 @@ describe('translate() 与 getInitialLocale()', () => {
 describe('i18n 覆盖率快照（用于追踪 admin 页面迁移进度）', () => {
   it('admin 页面已知硬编码字符串数量快照', () => {
     // 见 quality/evidence/i18n-audit.json
-    // 全部 24 个 admin 页面已接入 useLocale()/t()，UI 文案硬编码清零。
+    // 全部 25 个 admin 页面已接入 useLocale()/t()，UI 文案硬编码清零。
     // 该快照用于防止回归：新增 admin 页面必须走 i18n，此数字不得回升。
     // 使用 toEqual 而非 toMatchInlineSnapshot，避免在只读挂载的容器内触发
     // inline snapshot 写盘（EROFS）。
     expect({
       files_failing_i18n: 0,
-      files_passing_i18n: 24,
+      files_passing_i18n: 25,
       hardcoded_string_count: 0,
       coverage_percentage: 100,
     }).toEqual({
       files_failing_i18n: 0,
-      files_passing_i18n: 24,
+      files_passing_i18n: 25,
       hardcoded_string_count: 0,
       coverage_percentage: 100,
     })

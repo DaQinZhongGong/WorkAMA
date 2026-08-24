@@ -98,3 +98,105 @@ func TestResolveInternalTokenAcceptsUniqueSecret(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestResolveKeyPepperRequiresEnv(t *testing.T) {
+	t.Setenv("KEY_PEPPER", "")
+	t.Setenv("WORKAMA_ENV", "development")
+	if _, err := resolveKeyPepper(); err == nil || !strings.Contains(err.Error(), "required") {
+		t.Fatalf("expected required error, got %v", err)
+	}
+}
+
+func TestResolveKeyPepperRejectsPlaceholderInProduction(t *testing.T) {
+	for _, placeholder := range []string{"change-this-key-pepper", "change-this-pepper", "workama-local-key-pepper-change-before-production"} {
+		t.Setenv("KEY_PEPPER", placeholder)
+		t.Setenv("WORKAMA_ENV", "production")
+		if _, err := resolveKeyPepper(); err == nil || !strings.Contains(err.Error(), "placeholder") {
+			t.Fatalf("expected placeholder error for %q, got %v", placeholder, err)
+		}
+	}
+}
+
+func TestResolveKeyPepperAllowsPlaceholderInDevelopment(t *testing.T) {
+	t.Setenv("KEY_PEPPER", "change-this-key-pepper")
+	t.Setenv("WORKAMA_ENV", "development")
+	if _, err := resolveKeyPepper(); err != nil {
+		t.Fatalf("placeholder pepper tolerated in development: %v", err)
+	}
+}
+
+func TestResolveKeyPepperAcceptsUniquePepper(t *testing.T) {
+	t.Setenv("KEY_PEPPER", "unique-prod-pepper-32-bytes-minimum-ok")
+	t.Setenv("WORKAMA_ENV", "production")
+	got, err := resolveKeyPepper()
+	if err != nil {
+		t.Fatalf("unique pepper should be accepted: %v", err)
+	}
+	if got != "unique-prod-pepper-32-bytes-minimum-ok" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestResolveEncryptionKeyAllowsEmptyOutsideProduction(t *testing.T) {
+	t.Setenv("ENCRYPTION_KEY", "")
+	t.Setenv("WORKAMA_ENV", "development")
+	if _, err := resolveEncryptionKey(); err != nil {
+		t.Fatalf("empty key allowed outside production: %v", err)
+	}
+}
+
+func TestResolveEncryptionKeyRequiresInProduction(t *testing.T) {
+	t.Setenv("ENCRYPTION_KEY", "")
+	t.Setenv("WORKAMA_ENV", "production")
+	if _, err := resolveEncryptionKey(); err == nil || !strings.Contains(err.Error(), "required") {
+		t.Fatalf("expected required error in production, got %v", err)
+	}
+}
+
+func TestResolveEncryptionKeyRejectsWeakDefaultInProduction(t *testing.T) {
+	t.Setenv("ENCRYPTION_KEY", "QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=")
+	t.Setenv("WORKAMA_ENV", "production")
+	if _, err := resolveEncryptionKey(); err == nil || !strings.Contains(err.Error(), "weak default") {
+		t.Fatalf("expected weak default rejection, got %v", err)
+	}
+}
+
+func TestResolveEncryptionKeyAllowsWeakDefaultInDevelopment(t *testing.T) {
+	t.Setenv("ENCRYPTION_KEY", "QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=")
+	t.Setenv("WORKAMA_ENV", "development")
+	if _, err := resolveEncryptionKey(); err != nil {
+		t.Fatalf("weak default tolerated in development: %v", err)
+	}
+}
+
+func TestResolveEncryptionKeyRejectsInvalidKeyInProduction(t *testing.T) {
+	t.Setenv("ENCRYPTION_KEY", "not-a-fernet-key")
+	t.Setenv("WORKAMA_ENV", "production")
+	if _, err := resolveEncryptionKey(); err == nil || !strings.Contains(err.Error(), "valid Fernet") {
+		t.Fatalf("expected invalid key rejection, got %v", err)
+	}
+}
+
+func TestResolveEncryptionKeyAcceptsValidFernetKey(t *testing.T) {
+	// 合法 32 字节 base64url 编码的 Fernet 主密钥。
+	valid := "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+	t.Setenv("ENCRYPTION_KEY", valid)
+	t.Setenv("WORKAMA_ENV", "production")
+	if _, err := resolveEncryptionKey(); err != nil {
+		t.Fatalf("valid Fernet key should be accepted: %v", err)
+	}
+}
+
+func TestIsValidFernetKey(t *testing.T) {
+	// 格式校验仅检查是否 32 字节 base64；弱默认值「格式」合法，
+	// 其弱在内容，由 resolveEncryptionKey 的占位符表单独拦截。
+	if !isValidFernetKey("QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=") {
+		t.Fatalf("weak default is valid base64 format (rejected elsewhere by placeholder map)")
+	}
+	if !isValidFernetKey("AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=") {
+		t.Fatalf("valid 32-byte key should pass")
+	}
+	if isValidFernetKey("short") {
+		t.Fatalf("short value should fail")
+	}
+}

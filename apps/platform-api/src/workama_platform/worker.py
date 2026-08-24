@@ -31,6 +31,7 @@ from workama_platform.modules.billing.metering import (
     settle_meter_event,
     settle_meter_in_transaction,
 )
+from workama_platform.modules.config_center import config_watcher_loop
 from workama_platform.modules.billing.reporting import run_daily_reconciliation
 from workama_platform.modules.billing.grants import expire_credit_grants
 from workama_platform.modules.notification.delivery import process_pending_email_deliveries
@@ -2516,6 +2517,8 @@ async def run() -> None:
     automation_task = asyncio.create_task(automation_loop())
     memory_governance_task = asyncio.create_task(memory_governance_loop())
     heartbeat_task = asyncio.create_task(heartbeat_loop())
+    # v7.181: 跨进程热收敛——UI 配置发布后 ≤1s 重应用到本进程 settings。
+    config_watcher_task = asyncio.create_task(config_watcher_loop())
     LOGGER.info("platform worker listening", extra={"subject": SUBJECT})
     try:
         await asyncio.Future()
@@ -2531,9 +2534,10 @@ async def run() -> None:
         automation_task.cancel()
         memory_governance_task.cancel()
         heartbeat_task.cancel()
+        config_watcher_task.cancel()
         await asyncio.gather(
             reconciliation_task, notification_task, siem_task, webhook_task, channel_ext_task, external_app_task, job_task, outbox_task, automation_task,
-            memory_governance_task, heartbeat_task,
+            memory_governance_task, heartbeat_task, config_watcher_task,
             return_exceptions=True
         )
         await nc.drain()
