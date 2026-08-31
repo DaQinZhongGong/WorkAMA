@@ -185,6 +185,12 @@ paths:
       security: [{ bearerAuth: [] }]
       tags: [Gateway]
       responses: { '200': { description: Request log page } }
+  /billing/overview:
+    get:
+      operationId: getBillingOverview
+      security: [{ bearerAuth: [] }]
+      tags: [Billing]
+      responses: { '200': { description: Aggregated billing overview (plans + subscription + usage + events) for console } }
   /billing/account:
     get:
       operationId: getBillingAccount

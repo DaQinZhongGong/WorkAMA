@@ -18,6 +18,7 @@ import {
 import { api, errorMessage } from './api'
 import { useLocale } from './locale'
 import { Badge, Button, Kpi, Panel, StateView, Status } from './ui'
+import { BillingSparkline, deriveSparklineFromUsage } from './billing-sparkline'
 
 type Plan = {
   id: string
@@ -272,7 +273,7 @@ export default function AdminBillingPage(): ReactNode {
                       <Gauge size={15} /> {t('billing.usedCredits')} {formatNumber(usage?.credits_used)} {t('billing.creditUnit')}
                     </span>
                     {usageProgress !== null ? (
-                      <strong>{usageProgress}%</strong>
+                      <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{usageProgress}%</strong>
                     ) : (
                       <span className="muted">{t('billing.noMonthlyLimit')}</span>
                     )}
@@ -310,6 +311,27 @@ export default function AdminBillingPage(): ReactNode {
                       <span>{t('billing.storageLabel')} {formatBytes(usage?.storage_mb)}</span>
                     </li>
                   </ul>
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--wama-muted)' }}>
+                        {'近 7 日趋势'}
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--wama-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                        {usage?.month ?? '—'} · {t('billing.monthToDate')}
+                      </span>
+                    </div>
+                    <BillingSparkline
+                      data={deriveSparklineFromUsage(usage)}
+                      ariaLabel={`${t('billing.kpi.requests')} / ${t('billing.kpi.tokens')} 趋势`}
+                    />
+                    <div style={{ marginTop: 6, color: 'var(--wama-muted)', fontSize: 11, lineHeight: 1.5 }}>
+                      {usageProgress !== null && usageProgress >= 90
+                        ? '已达配额 90% — 建议升级套餐或申请扩容'
+                        : usageProgress !== null && usageProgress >= 70
+                          ? '已用 70% — 关注用量拐点'
+                          : '用量平稳 — 可按当前套餐持续运行'}
+                    </div>
+                  </div>
                 </div>
               </Panel>
 

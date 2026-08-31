@@ -51,7 +51,10 @@
 
   --wama-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --wama-display: "Fraunces", "Inter", ui-serif, Georgia, serif;
   --wama-mono: "JetBrains Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+  --wama-grid: rgba(22, 26, 34, 0.06);
+  --wama-grid-strong: rgba(22, 26, 34, 0.09);
 
   --wama-sidebar-w: 256px;
   --wama-sidebar-w-collapsed: 68px;
@@ -106,7 +109,8 @@ body {
   color: #fff; border-radius: var(--wama-radius); padding: 8px 10px; cursor: pointer;
   text-align: left; transition: background 0.15s ease;
 }
-.workspace-switcher:hover { background: rgba(255, 255, 255, 0.08); }
+.workspace-switcher:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(109, 94, 252, 0.28); }
+.workspace-switcher:focus-visible { outline: none; border-color: var(--wama-accent); box-shadow: 0 0 0 3px rgba(109, 94, 252, 0.18); }
 .workspace-avatar {
   width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
   background: linear-gradient(135deg, #2b3140, #3a4252);
@@ -342,11 +346,29 @@ tbody tr:last-child td { border-bottom: none; }
   background: linear-gradient(150deg, #14171f 0%, #1d1430 55%, #2a1d4d 100%);
   position: relative; overflow: hidden;
 }
+.auth-rail::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.07;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.9) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.9) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask: linear-gradient(180deg, black 60%, transparent 100%);
+}
 .auth-rail::after {
   content: ""; position: absolute; width: 420px; height: 420px; right: -140px; top: -140px; border-radius: 50%;
   background: radial-gradient(circle, rgba(109, 94, 252, 0.42), transparent 70%); pointer-events: none;
 }
 .auth-rail > * { position: relative; z-index: 1; }
+.auth-rail-copy h2 {
+  font-family: var(--wama-display);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
 .auth-logo, .auth-mobile-brand { letter-spacing: -0.01em; }
 .auth-rail-copy h2 { font-size: clamp(28px, 3.2vw, 38px); letter-spacing: -0.025em; }
 .auth-rail-copy p { color: #b9b3cc; }
@@ -388,6 +410,189 @@ tbody tr:last-child td { border-bottom: none; }
 @media (max-width: 760px) {
   .auth-shell:not(.simple) { display: block; }
   .auth-panel { padding: 24px 20px; border-radius: var(--wama-radius); box-shadow: var(--wama-shadow); }
+}
+
+/* =========================================================================
+ * Landing — editorial Precision Operational
+ * The only marketing surface in the product. Uses --wama-display for the
+ * single H1, a restrained dot grid, and a calm signal column that earns
+ * attention through type and rhythm, not color.
+ * ========================================================================= */
+.landing-main {
+  position: relative;
+  isolation: isolate;
+}
+.landing-main::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.55;
+  background:
+    radial-gradient(820px 420px at 18% -6%, rgba(109, 94, 252, 0.09), transparent 62%),
+    radial-gradient(560px 360px at 92% 18%, rgba(109, 94, 252, 0.06), transparent 62%),
+    linear-gradient(var(--wama-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--wama-grid) 1px, transparent 1px);
+  background-size: auto, auto, 28px 28px, 28px 28px;
+  mask: linear-gradient(180deg, black 72%, transparent 100%);
+}
+.landing-main > * { position: relative; z-index: 1; }
+.landing-main .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--wama-accent-strong);
+  font-weight: 800;
+}
+.landing-main .eyebrow::before {
+  content: "";
+  width: 22px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--wama-accent);
+  flex: none;
+}
+.landing-main h1 {
+  font-family: var(--wama-display);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.92;
+  color: var(--wama-text);
+  text-wrap: balance;
+}
+.landing-main > div:first-child > p {
+  color: var(--wama-muted);
+  font-size: 16.5px;
+  line-height: 1.7;
+  max-width: 58ch;
+}
+.landing-actions .button-primary {
+  box-shadow: 0 8px 24px rgba(109, 94, 252, 0.28), 0 1px 2px rgba(16, 24, 40, 0.08);
+}
+.landing-actions .button-primary:hover {
+  box-shadow: 0 10px 28px rgba(109, 94, 252, 0.34), 0 1px 2px rgba(16, 24, 40, 0.08);
+  transform: translateY(-1px);
+}
+.landing-signals {
+  border-left: 1px solid var(--wama-border);
+  padding-left: 0;
+}
+.landing-signals > div {
+  position: relative;
+  padding: 22px 0 22px 26px;
+  border-bottom: 1px solid var(--wama-border);
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+.landing-signals > div::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background 0.16s ease;
+}
+.landing-signals > div:hover { background: var(--wama-surface-2); }
+.landing-signals > div:hover::before { background: var(--wama-accent); }
+.landing-signals strong {
+  color: var(--wama-accent);
+  font-family: var(--wama-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+.landing-signals span {
+  font-family: var(--wama-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--wama-text);
+}
+.landing-signals small {
+  color: var(--wama-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  max-width: 32ch;
+}
+.public-topbar nav a { position: relative; }
+.public-topbar nav a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 2px;
+  background: var(--wama-accent);
+  opacity: 0;
+  transform: scaleX(0.6);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.public-topbar nav a:hover::after { opacity: 1; transform: scaleX(1); }
+
+/* ----------------------------- Dashboard — stat density ----------------------------- */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--wama-accent), #9b7bff);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.stat-card:hover::before { opacity: 1; }
+.stat-card-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.stat-card-value {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+.kpi strong,
+.stat-card-value { font-variant-numeric: tabular-nums; }
+
+/* ----------------------------- Page header — editorial rule ----------------------------- */
+.page-header .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.page-header .eyebrow::before {
+  content: "";
+  width: 14px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--wama-accent-soft);
+  border: 1px solid var(--wama-accent);
+  flex: none;
+}
+
+/* ----------------------------- Empty state — editorial ----------------------------- */
+.empty-state h3,
+.empty-state strong {
+  font-family: var(--wama-display);
+  letter-spacing: -0.02em;
+}
+.empty-state .empty-state-icon {
+  position: relative;
+  overflow: hidden;
+}
+.empty-state .empty-state-icon::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(circle at 30% 30%, rgba(109, 94, 252, 0.18), transparent 62%);
+  pointer-events: none;
 }
 
 /* ----------------------------- Dark theme ----------------------------- */
@@ -1317,3 +1522,41 @@ pre > code { padding: 0; background: none; border: none; color: inherit; }
   --teal-strong: var(--wama-accent-700);
   --teal-soft: var(--wama-accent-soft);
 }
+
+/* --- Config Center (production) --- */
+/* Precision Operational: dense, scannable, trustworthy. Uses tokens, tabular nums, subtle focus. */
+.cfg-shell { display: grid; gap: 14px; }
+.cfg-header-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; color: var(--wama-muted); font-size: 12.5px; }
+.cfg-version-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--wama-surface-2); border: 1px solid var(--wama-border); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--wama-text-2); }
+.cfg-version-pill strong { color: var(--wama-accent-700); font-weight: 800; }
+.cfg-restart-callout { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-radius: var(--wama-radius-sm); background: var(--wama-warning-soft); border: 1px solid #f5d6a0; color: #7a4a00; font-size: 12.5px; line-height: 1.6; }
+.cfg-tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: thin; border-bottom: 1px solid var(--wama-border); margin-bottom: 14px; padding-bottom: 0; }
+.cfg-tabs .tab { appearance: none; background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px 11px; font-size: 13px; font-weight: 600; color: var(--wama-muted); cursor: pointer; white-space: nowrap; position: relative; transition: color .14s ease, border-color .14s ease, background .14s ease; border-radius: 8px 8px 0 0; }
+.cfg-tabs .tab:hover { color: var(--wama-text); background: var(--wama-surface-2); }
+.cfg-tabs .tab[aria-selected="true"] { color: var(--wama-accent-700); border-bottom-color: var(--wama-accent); background: var(--wama-accent-soft); }
+.cfg-tabs .tab:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--wama-accent-soft); }
+.cfg-tab-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--wama-danger); display: inline-block; margin-left: 6px; box-shadow: 0 0 0 2px rgba(185,28,28,.14); }
+.cfg-search-wrap { display: flex; align-items: center; gap: 8px; max-width: 460px; background: var(--wama-surface); border: 1px solid var(--wama-border-strong); border-radius: var(--wama-radius-sm); padding: 6px 10px; transition: border-color .14s ease, box-shadow .14s ease; }
+.cfg-search-wrap:focus-within { border-color: var(--wama-accent); box-shadow: 0 0 0 3px var(--wama-accent-soft); }
+.cfg-search-wrap input { border: 0; outline: 0; flex: 1; font-size: 13px; background: transparent; color: var(--wama-text); }
+.cfg-field-row { display: grid; gap: 6px; }
+.cfg-field-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.cfg-help { color: var(--wama-muted); font-size: 12px; line-height: 1.55; max-width: 66ch; }
+.cfg-test-result { display: inline-flex; gap: 6px; align-items: center; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid transparent; }
+.cfg-test-result.ok { background: var(--wama-success-soft); color: var(--wama-success); border-color: #bfe8cc; }
+.cfg-test-result.fail { background: var(--wama-danger-soft); color: var(--wama-danger); border-color: #f2b8b8; }
+
+/* --- Billing & Dashboard impeccable polish --- */
+.resource-card.is-current { border-color: var(--wama-accent); box-shadow: 0 8px 24px rgba(109,94,252,.12), var(--wama-shadow-sm); position: relative; overflow: hidden; }
+.resource-card.is-current::before { content:""; position:absolute; left:0; right:0; top:0; height: 3px; background: linear-gradient(90deg, var(--wama-accent), #9b7bff); }
+.usage-progress-bar { height: 8px; background: var(--wama-border); border-radius: 999px; overflow: hidden; }
+.usage-progress-fill { display:block; height:100%; background: linear-gradient(90deg, var(--wama-accent), #7c6cff); border-radius: 999px; transition: width .35s cubic-bezier(.2,.8,.2,1); }
+.usage-progress-fill.warn { background: linear-gradient(90deg, #d97706, #f59e0b); }
+.usage-progress-fill.danger { background: linear-gradient(90deg, #b91c1c, #ef4444); }
+.usage-mini-grid { display:flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; color: var(--wama-muted); font-size: 12.5px; }
+.usage-mini-grid li { display:flex; align-items:center; gap:6px; background: var(--wama-surface-2); border:1px solid var(--wama-border); padding: 6px 10px; border-radius: 999px; }
+.stat-card { transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+.stat-card:hover { transform: translateY(-1px); box-shadow: var(--wama-shadow); border-color: var(--wama-border-strong); }
+.dash-section { background: var(--wama-surface); border: 1px solid var(--wama-border); border-radius: var(--wama-radius); box-shadow: var(--wama-shadow-sm); padding: 16px; }
+.getting-list li { transition: background .14s ease; border-radius: 8px; padding: 8px 10px; margin: -4px -10px; }
+.getting-list li:hover { background: var(--wama-surface-2); }

@@ -56,3 +56,10 @@ prod-up: prod-check
 
 prod-down:
 	docker compose --env-file $(PROD_ENV_FILE) $(PROD_COMPOSE_FILES) down
+
+# 数据库备份 / 恢复（容器内 pg_dump -Fc + docker cp，二进制安全）
+db-backup:
+	powershell -ExecutionPolicy Bypass -File tools/db-backup.ps1 -OutDir backups
+
+db-restore:
+	powershell -ExecutionPolicy Bypass -File tools/db-restore.ps1 -File $(FILE)

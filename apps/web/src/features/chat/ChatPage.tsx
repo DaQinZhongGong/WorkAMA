@@ -192,7 +192,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     let active = true
-    api.get<ListResponse<Session>>('/api/v1/sessions')
+    api.get<ListResponse<Session>>('/api/v1/sessions?limit=50')
       .then((result) => {
         if (active) {
           setConversations(

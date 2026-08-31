@@ -9,6 +9,9 @@
     <meta name="theme-color" content="#111827" />
     <meta name="description" content="WorkAMA 是一体化 AI 中台：OpenAI 兼容 LLM 网关（WorkAMA Gateway）、多租户控制面、知识库 / RAG、应用编排、工作流、第三方平台集成、AMA-Chat/Work/Code/Design 智能体家族、Web/桌面端/移动端/小程序/CLI/浏览器插件多端客户端。" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
     <link rel="preconnect" href="http://localhost:20200" crossorigin="anonymous" />
     <link rel="preconnect" href="http://localhost:20201" crossorigin="anonymous" />
     <link rel="preconnect" href="http://localhost:20202" crossorigin="anonymous" />
@@ -16,6 +19,8 @@
     <link rel="dns-prefetch" href="http://localhost:20201" />
     <link rel="dns-prefetch" href="http://localhost:20202" />
     <title>WorkAMA — OpenAI 兼容 LLM 网关 + 多租户 AI 中台 + 多智能体家族</title>
+    <!-- 运行时配置：必须在模块脚本之前加载（容器入口会重写此文件，见 docker-entrypoint.sh） -->
+    <script src="/config.js"></script>
   </head>
   <body>
     <div id="app"></div>

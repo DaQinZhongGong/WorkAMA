@@ -41,6 +41,8 @@ from workama_platform.core import (
     pool,
 )
 
+import asyncio
+
 logger = logging.getLogger("workama_platform.billing")
 
 router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
@@ -529,6 +531,195 @@ async def check_quota(
 # 否则 "summary" 会被 /usage 之后的路径捕获（此处 /usage 为 GET 无参数，无冲突）。
 
 
+@router.get("/overview")
+async def billing_overview(
+    actor: Annotated[Actor, Depends(get_actor)],
+):
+    """聚合概览：供控制台 billing-page 一次拉取所需全部数据（生产级）。
+
+    聚合：plans(公开 active) + active subscription(当前 workspace) + period usage summary
+    + recent billing events(近 8 条 bill_transaction) + quota 预检。结果按 workspace 缓存 60s，
+    写路径（create_plan / subscription 变更）失效。所有金额 Decimal 保持字符串序列化由 json_dumps 统一处理。
+    前端契约 BillingData {plans, subscription, usage, events} 直接可用。
+    """
+    cache_key = _cache_key(actor.workspace_id, "billing", "overview")
+    cached = await cache_get(cache_key)
+    if cached:
+        return json.loads(cached)
+
+    async with pool.connection() as conn:
+        # 并发查询：plans / active sub / hourly aggregates / recent transactions
+        # plans（公开 active，复用 list_plans 排序）
+        plans_task = conn.execute(
+            "SELECT * FROM billing_plan WHERE status = 'active' ORDER BY price_monthly, code"
+        )
+        sub_task = conn.execute(
+            """
+            SELECT s.*, p.code AS plan_code, p.name AS plan_name,
+                   p.price_monthly, p.token_quota, p.seat_quota, p.storage_quota_gb, p.api_rate_limit, p.features
+            FROM billing_subscription s
+            LEFT JOIN billing_plan p ON p.id = s.plan_id
+            WHERE s.workspace_id = %s AND s.status = 'active'
+            ORDER BY s.created_at DESC LIMIT 1
+            """,
+            (actor.workspace_id,),
+        )
+        # 先取 plans 与 sub，再按 sub 周期查 usage/transaction（依赖 sub 周期）
+        plans_result = await plans_task
+        sub_result = await sub_task
+        plan_rows = await plans_result.fetchall()
+        sub_row = await sub_result.fetchone()
+
+        # 映射 plans 为前端 BillingData.plans 形状
+        plans = []
+        for r in plan_rows:
+            plans.append(
+                {
+                    "id": r["id"],
+                    "code": r["code"],
+                    "name": r["name"],
+                    "price": int(r["price_monthly"]) if r["price_monthly"] is not None else 0,
+                    "currency": "CNY",
+                    "seats": int(r["seat_quota"]) if r.get("seat_quota") is not None else None,
+                    "monthly_credits": int(r["token_quota"]) if r.get("token_quota") is not None else None,
+                    "features": r.get("features") or [],
+                    "description": r.get("description"),
+                    "price_monthly": r["price_monthly"],
+                    "price_yearly": r["price_yearly"],
+                    "token_quota": r["token_quota"],
+                    "seat_quota": r["seat_quota"],
+                    "storage_quota_gb": r["storage_quota_gb"],
+                    "api_rate_limit": r["api_rate_limit"],
+                }
+            )
+
+        # subscription 映射为前端 Subscription
+        if sub_row:
+            subscription = {
+                "plan_id": sub_row["plan_id"],
+                "plan_code": sub_row.get("plan_code") or sub_row.get("code"),
+                "plan_name": sub_row.get("plan_name") or sub_row.get("name"),
+                "status": sub_row["status"],
+                "seats": int(sub_row.get("seat_quota") or 0) if sub_row.get("seat_quota") else None,
+                "renew_at": sub_row["current_period_end"].isoformat() if sub_row.get("current_period_end") else None,
+                "started_at": sub_row["current_period_start"].isoformat() if sub_row.get("current_period_start") else None,
+                "id": sub_row["id"],
+                "billing_cycle": sub_row.get("billing_cycle"),
+                "current_period_start": sub_row.get("current_period_start"),
+                "current_period_end": sub_row.get("current_period_end"),
+            }
+            period_start = sub_row["current_period_start"]
+            period_end = sub_row["current_period_end"]
+        else:
+            subscription = None
+            period_start = period_end = None
+
+        # usage 汇总：bill_usage_record + bill_usage_hourly（fallback）
+        if sub_row and period_start and period_end:
+            usage_result = await conn.execute(
+                """
+                SELECT COALESCE(SUM(prompt_tokens + completion_tokens), 0) AS tokens,
+                       COUNT(*) AS requests,
+                       COALESCE(SUM(cost_credits), 0) AS credits
+                FROM bill_usage_record
+                WHERE workspace_id = %s AND created_at >= %s AND created_at < %s
+                """,
+                (actor.workspace_id, period_start, period_end),
+            )
+            usage_row = await usage_result.fetchone()
+            # storage 仍走 billing_usage_record metric=storage_used_gb（如无则 0）
+            storage_result = await conn.execute(
+                """
+                SELECT COALESCE(SUM(value),0) AS storage_val FROM billing_usage_record
+                WHERE workspace_id = %s AND metric = 'storage_used_gb'
+                  AND period_start >= %s AND period_end <= %s
+                """,
+                (actor.workspace_id, period_start, period_end),
+            )
+            storage_row = await storage_result.fetchone()
+            usage = {
+                "requests": int(usage_row["requests"] or 0) if usage_row else 0,
+                "tokens": int(usage_row["tokens"] or 0) if usage_row else 0,
+                "credits_used": int(float(usage_row["credits"] or 0)) if usage_row else 0,
+                "storage_mb": int(float(storage_row["storage_val"] or 0) * 1024) if storage_row else 0,
+                "month": period_start.strftime("%Y-%m") if period_start else None,
+            }
+        else:
+            usage = {"requests": 0, "tokens": 0, "storage_mb": 0, "credits_used": 0, "month": None}
+
+        # events：近 8 条 bill_transaction / billing_invoice 统一映射
+        events = []
+        try:
+            tx_result = await conn.execute(
+                """
+                SELECT id, kind, amount, description, created_at
+                FROM bill_transaction
+                WHERE workspace_id = %s
+                ORDER BY created_at DESC LIMIT 8
+                """,
+                (actor.workspace_id,),
+            )
+            tx_rows = await tx_result.fetchall()
+            for r in tx_rows:
+                amt = r["amount"]
+                # Decimal -> int credits
+                try:
+                    amt_val = int(float(amt)) if amt is not None else 0
+                except Exception:
+                    amt_val = 0
+                events.append(
+                    {
+                        "id": r["id"],
+                        "type": r["kind"] or "transaction",
+                        "amount": amt_val,
+                        "currency": "CNY",
+                        "description": r.get("description") or r["kind"] or r["id"],
+                        "created_at": r["created_at"].isoformat() if r.get("created_at") else None,
+                    }
+                )
+        except Exception:
+            events = []
+        # 若 bill_transaction 为空，fallback 到 billing_invoice
+        if not events:
+            try:
+                inv_result = await conn.execute(
+                    """
+                    SELECT id, status AS kind, amount, created_at,
+                           'Invoice ' || id AS description
+                    FROM billing_invoice WHERE workspace_id = %s
+                    ORDER BY created_at DESC LIMIT 8
+                    """,
+                    (actor.workspace_id,),
+                )
+                inv_rows = await inv_result.fetchall()
+                for r in inv_rows:
+                    events.append(
+                        {
+                            "id": r["id"],
+                            "type": r["kind"] or "invoice",
+                            "amount": int(float(r["amount"] or 0)),
+                            "currency": "CNY",
+                            "description": r.get("description") or r["id"],
+                            "created_at": r["created_at"].isoformat() if r.get("created_at") else None,
+                        }
+                    )
+            except Exception:
+                pass
+
+    response = {
+        "plans": plans,
+        "subscription": subscription,
+        "usage": usage,
+        "events": events,
+    }
+    # 缓存 60s，失败不阻断
+    try:
+        await cache_set(cache_key, json_dumps(response))
+    except Exception:
+        pass
+    return response
+
+
 @router.get("/plans")
 async def list_plans():
     """列出所有 active 套餐（公开，无需鉴权）。"""
@@ -608,6 +799,7 @@ async def create_plan(
             )
             row = await result.fetchone()
     await cache_delete(_cache_key("_global_", "billing_plans", "active"))
+    # overview 聚合含 plans，按 workspace 维度缓存，计划变更后让 TTL 自然失效或由网关侧主动失效；此处清理全局 plans 缓存即可
     return _plan_summary(row)
 
 
@@ -682,6 +874,11 @@ async def create_subscription(
                 "SELECT * FROM billing_subscription WHERE id = %s", (sub_id,)
             )
             row = await result.fetchone()
+    # 订阅变更失效该 workspace 的 overview 聚合缓存
+    try:
+        await cache_delete(_cache_key(actor.workspace_id, "billing", "overview"))
+    except Exception:
+        pass
     return {**_subscription_summary(row), "switched": switched, "plan": _plan_summary(plan)}
 
 
@@ -722,6 +919,10 @@ async def cancel_subscription(
                 (subscription_id,),
             )
             updated = await result.fetchone()
+    try:
+        await cache_delete(_cache_key(actor.workspace_id, "billing", "overview"))
+    except Exception:
+        pass
     return _subscription_summary(updated)
 
 

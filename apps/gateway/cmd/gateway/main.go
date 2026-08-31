@@ -166,7 +166,7 @@ func startConfigSync(handler *httpapi.ChatHandler, cfg configSyncConfig) {
 		Endpoint:      cfg.endpoint,
 		Token:         cfg.token,
 		EncryptionKey: cfg.encryptionKey,
-		Interval:      2 * time.Second,
+		Interval:      1 * time.Second,
 		Logger:        cfg.logger,
 	}
 	go func() {
@@ -360,3 +360,4 @@ func isValidFernetKey(value string) bool {
 	}
 	return false
 }
+

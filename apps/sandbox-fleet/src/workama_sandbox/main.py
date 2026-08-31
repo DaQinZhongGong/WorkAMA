@@ -5,6 +5,7 @@ import copy
 import io
 import json
 import hashlib
+import logging
 import os
 import secrets
 import shutil
@@ -26,6 +27,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from minio import Minio
 
 from workama_sandbox.netpolicy import build_egress_rules
+from workama_sandbox.config_sync import start_config_sync
 
 
 class Settings(BaseSettings):
@@ -56,9 +58,126 @@ class Settings(BaseSettings):
     minio_endpoint: str = "minio:9000"
     minio_access_key: str = "workama"
     minio_secret_key: str = "workama_minio"
+    # 配置中心基址；为空表示禁用配置同步（仅按 ENV 基线运行）。
+    platform_api_url: str = ""
 
 
-settings = Settings()
+class RuntimeSettings:
+    """运行时可热更新的配置持有器（替代静态 ``settings`` 实例）。
+
+    - ``HOT_KEYS``：配置中心 sandbox 分组可热应用键——全部为请求期 / reaper /
+      预热池即时读取的运行参数，应用后无需重启；
+    - 其余属性：启动期基础设施（ENV 注入），属重启生效边界；
+    - :meth:`apply_overrides` 先整体回落 ENV 基线、再应用 DB(UI) 覆盖，
+      严格保持「DB(UI) > ENV > 代码默认」优先级；UI 删除覆盖即自动回落。
+    """
+
+    HOT_KEYS = frozenset({
+        "sandbox_idle_seconds",
+        "sandbox_ttl_seconds",
+        "sandbox_prewarm_size",
+        "sandbox_max_total",
+        "sandbox_max_per_workspace",
+        "sandbox_memory",
+        "sandbox_nano_cpus",
+        "sandbox_provider",
+        "sandbox_runtime",
+        "sandbox_require_gvisor",
+        "sandbox_require_microvm",
+    })
+    _INT_KEYS = frozenset({
+        "sandbox_idle_seconds", "sandbox_ttl_seconds", "sandbox_prewarm_size",
+        "sandbox_max_total", "sandbox_max_per_workspace", "sandbox_nano_cpus",
+    })
+    _BOOL_KEYS = frozenset({"sandbox_require_gvisor", "sandbox_require_microvm"})
+    _FIXED = frozenset({
+        "_data", "_baseline", "database_url", "nats_url", "internal_token",
+        "sandbox_image", "sandbox_browser_image", "sandbox_code_image",
+        "sandbox_firecracker_runtime", "sandbox_firecracker_binary",
+        "sandbox_firecracker_kernel_image", "sandbox_firecracker_rootfs_image",
+        "sandbox_firecracker_socket_dir", "sandbox_firecracker_kvm_path",
+        "minio_endpoint", "minio_access_key", "minio_secret_key", "platform_api_url",
+    })
+
+    def __init__(self, base_settings):
+        self._data = {k: getattr(base_settings, k) for k in self.HOT_KEYS}
+        self._baseline = dict(self._data)
+        # 启动期基础设施配置（ENV 注入，重启生效边界）
+        self.database_url = base_settings.database_url
+        self.nats_url = base_settings.nats_url
+        self.internal_token = base_settings.internal_token
+        self.sandbox_image = base_settings.sandbox_image
+        self.sandbox_browser_image = base_settings.sandbox_browser_image
+        self.sandbox_code_image = base_settings.sandbox_code_image
+        self.sandbox_firecracker_runtime = base_settings.sandbox_firecracker_runtime
+        self.sandbox_firecracker_binary = base_settings.sandbox_firecracker_binary
+        self.sandbox_firecracker_kernel_image = base_settings.sandbox_firecracker_kernel_image
+        self.sandbox_firecracker_rootfs_image = base_settings.sandbox_firecracker_rootfs_image
+        self.sandbox_firecracker_socket_dir = base_settings.sandbox_firecracker_socket_dir
+        self.sandbox_firecracker_kvm_path = base_settings.sandbox_firecracker_kvm_path
+        self.minio_endpoint = base_settings.minio_endpoint
+        self.minio_access_key = base_settings.minio_access_key
+        self.minio_secret_key = base_settings.minio_secret_key
+        self.platform_api_url = base_settings.platform_api_url
+
+    def __getattr__(self, name):
+        data = self.__dict__.get("_data")
+        if data is not None and name in data:
+            return data[name]
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+
+    def __setattr__(self, name, value):
+        if name in self._FIXED:
+            super().__setattr__(name, value)
+        else:
+            self.__dict__["_data"][name] = value
+
+    def _coerce(self, key: str, value):
+        """按键类型收敛取值；无法安全收敛时返回 None（跳过该键，保持基线）。"""
+        if key in self._INT_KEYS:
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return None
+        if key in self._BOOL_KEYS:
+            if isinstance(value, bool):
+                return value
+            text = str(value).strip().lower()
+            if text in ("true", "1", "yes", "on"):
+                return True
+            if text in ("false", "0", "no", "off"):
+                return False
+            return None
+        return value if isinstance(value, str) else str(value)
+
+    def apply_overrides(self, overrides: dict) -> list[str]:
+        """回落基线后应用 DB(UI) 覆盖，返回实际变更的键列表（排序稳定）。
+
+        非 HOT_KEYS 键忽略；类型非法键跳过并告警，绝不因脏值中断服务。
+        """
+        target = dict(self._baseline)
+        skipped: list[str] = []
+        for key, value in (overrides or {}).items():
+            if key not in self.HOT_KEYS:
+                continue
+            coerced = self._coerce(key, value)
+            if coerced is None:
+                skipped.append(key)
+                continue
+            target[key] = coerced
+        changed = sorted(k for k in self.HOT_KEYS if target.get(k) != self._data.get(k))
+        self._data = target
+        if skipped:
+            logging.getLogger("sandbox-fleet.config").warning(
+                "config overrides type-invalid; keys kept at baseline: %s", ",".join(sorted(skipped)))
+        return changed
+
+
+# 基础设置（从环境变量加载，作为基线）
+_base_settings = Settings()
+
+# 运行时可热更新的配置持有器（替代静态 settings 实例）
+settings = RuntimeSettings(_base_settings)
 pool = AsyncConnectionPool(settings.database_url, min_size=1, max_size=5, open=False, kwargs={"row_factory": dict_row})
 
 
@@ -74,6 +193,7 @@ except DockerException:
 nats_client = None
 reaper_task: asyncio.Task | None = None
 warm_task: asyncio.Task | None = None
+config_sync_task: asyncio.Task | None = None
 warm_pool: list[tuple[Any, Any]] = []
 warm_lock = asyncio.Lock()
 object_store = Minio(settings.minio_endpoint, access_key=settings.minio_access_key, secret_key=settings.minio_secret_key, secure=False)
@@ -545,14 +665,21 @@ async def reaper():
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    global nats_client, reaper_task, warm_task
+    global nats_client, reaper_task, warm_task, config_sync_task
     await pool.open(); await ensure_schema(); await reconcile_sandboxes(); await cleanup_warm_containers()
     try: nats_client = await nats.connect(settings.nats_url, connect_timeout=3)
     except Exception: nats_client = None
     reaper_task = asyncio.create_task(reaper())
     capabilities = await asyncio.to_thread(provider_status)
     warm_task = asyncio.create_task(maintain_warm_pool()) if capabilities["provider_ready"] else None
+    # 配置中心热同步：platform_api_url 未配置（空）时禁用，仅按 ENV 基线运行。
+    config_sync_task = (
+        start_config_sync(settings, base_url=settings.platform_api_url, token=settings.internal_token)
+        if settings.platform_api_url else None
+    )
     yield
+    if config_sync_task is not None:
+        config_sync_task.cancel()
     reaper_task.cancel()
     if warm_task is not None:
         warm_task.cancel()

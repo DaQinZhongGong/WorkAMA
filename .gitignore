@@ -94,3 +94,16 @@ temp-*
 # Quality artifacts
 quality/performance/results/
 deploy/perf/out/
+
+# DB 备份产物（本地运维工件，不入仓）
+backups/
+
+# One-off local probes / hot-patch scripts（不入仓，人工验证用后即弃）
+**/_test_write.txt
+**/_modify.cjs
+**/_test.tsx
+**/_probe.js
+**/_probe.mjs
+**/_proxy.mjs
+apps/web/public/config.js
+apps/web/src/styles/craft.css

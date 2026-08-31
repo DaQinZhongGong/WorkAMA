@@ -84,6 +84,7 @@ GROUP_LABELS = {
     "pool": "数据库连接池",
     "redis_ha": "Redis 高可用",
     "setup": "初始化",
+    "sandbox": "沙箱集群",
     "llm_staging": "LLM 覆盖渠道 (staging)",
 }
 
@@ -177,6 +178,30 @@ SCHEMA: list[ConfigField] = [
                 restart_required=True),
     # 初始化
     ConfigField("setup_token", "setup", "初始化令牌", secret=True, default=""),
+    # 沙箱集群（请求期读取，热生效；修改后 reaper/容器创建/容量检查即时生效，无需重启）
+    ConfigField("sandbox_idle_seconds", "sandbox", "空闲超时(秒)", type="int", default=900,
+                min=60, max=86400, help="沙箱空闲多久进入睡眠/快照；运行期热生效。"),
+    ConfigField("sandbox_ttl_seconds", "sandbox", "生存超时(秒)", type="int", default=86400,
+                min=3600, max=2592000, help="沙箱最大生存时间；运行期热生效。"),
+    ConfigField("sandbox_prewarm_size", "sandbox", "预热池大小", type="int", default=2,
+                min=0, max=100, help="预热沙箱数量；运行期热生效。"),
+    ConfigField("sandbox_max_total", "sandbox", "最大并发总数", type="int", default=50,
+                min=1, max=1000, help="全平台沙箱并发上限；运行期热生效。"),
+    ConfigField("sandbox_max_per_workspace", "sandbox", "单工作区最大并发", type="int", default=20,
+                min=1, max=200, help="单工作区沙箱并发上限；运行期热生效。"),
+    ConfigField("sandbox_memory", "sandbox", "容器内存限制", type="str", default="4g",
+                help="容器内存限制（如 4g/8g）；修改后新建容器生效，存量不变。"),
+    ConfigField("sandbox_nano_cpus", "sandbox", "CPU纳秒配额", type="int", default=2000000000,
+                min=500000000, max=8000000000, help="CPU 纳秒配额（1e9=1核）；新建容器生效。"),
+    ConfigField("sandbox_provider", "sandbox", "沙箱提供商", type="enum",
+                choices=("docker", "firecracker"), default="docker",
+                help="docker=gVisor/runc 容器路径；firecracker=微虚拟机路径；修改后新建容器生效。"),
+    ConfigField("sandbox_runtime", "sandbox", "容器运行时", type="str", default="runsc",
+                help="Docker 运行时名（runsc/runc-dev/kata-fc）；新建容器生效。"),
+    ConfigField("sandbox_require_gvisor", "sandbox", "强制 gVisor", type="bool", default=True,
+                help="要求 gVisor 运行时；新建容器生效。"),
+    ConfigField("sandbox_require_microvm", "sandbox", "强制微虚拟机", type="bool", default=False,
+                help="要求 Firecracker 微虚拟机；新建容器生效。"),
     # LLM 覆盖渠道（staging）：经 /internal/config/export 加密下发，Go 网关轮询热应用。
     # 优先于 DB 渠道，失败自动回退 DB 渠道；关闭/清空即恢复内置渠道路由。
     ConfigField("llm_staging_enabled", "llm_staging", "启用覆盖渠道", type="bool", default=False,
@@ -946,6 +971,9 @@ async def export_runtime(actor: Annotated[Actor, Depends(require_internal)]):
     - ``values``：非密钥字段的生效值（明文）；
     - ``secrets``：库内已加密密钥字段的 **Fernet 密文原样**（绝不导出明文）。
       消费方（Go 网关）用与 platform-api 相同的 ENCRYPTION_KEY 解密。
+    - ``overrides``：**仅 DB(UI) 发布来源**的非密钥生效值。消费方（如
+      sandbox-fleet）只应用该视图即可严格保持「DB(UI) > ENV > 默认」优先级：
+      overrides 中不存在的键回落消费方本地基线，不会被解析后的默认值污染。
 
     网关据此热应用 llm_staging_* 覆盖渠道；version 变化即代表有新发布。
     """
@@ -955,11 +983,14 @@ async def export_runtime(actor: Annotated[Actor, Depends(require_internal)]):
         "version": await _redis_get_version(),
         "values": {},
         "secrets": {},
+        "overrides": {},
     }
     for k, v in eff.items():
         if v.get("secret"):
             continue
         out["values"][k] = v.get("value")
+        if v.get("source") == "db":
+            out["overrides"][k] = v.get("value")
     for k, row in rows.items():
         f = _SCHEMA_BY_KEY.get(k)
         if not f or not f.secret:

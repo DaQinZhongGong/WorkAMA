@@ -779,3 +779,58 @@ docker run --rm --network=workama_default -v "${PWD}/deploy/perf/k6:/scripts" -w
 **诚实边界**：① staging 渠道语义为「优先尝试、失败回退 DB 渠道」，上游真实第三方 provider（OpenAI 等）执行仍属 pending_external；② configsync 仅消费 llm_staging_*（网关其余参数本就 DB 化或属 restart_required 引导期边界）；③ Redis version=0 的首次快照会触发一次「清除」回调（幂等，无行为影响）。
 
 **git 状态**：验证无误文件分批 `git add` 暂存，未 commit 未 push。**status=candidate，GA 待人工签字。**
+
+## 10.19 Web 运行时配置注入 + 数据库备份工具链（status=candidate）
+
+**目标**：消灭前端「构建期烘焙端点」（改环境需重编镜像的反 12-factor 问题），补齐生产投产的数据库备份/恢复能力。
+
+**本轮落地（candidate）**：
+
+1. **Web 运行时配置注入**：`config.ts` 新增最高优先级层 `window.__WORKAMA_CONFIG__`（优先级：运行时 > VITE_* 构建期 > 缺省；空串视为未设置逐级回退）。容器入口 `apps/web/docker-entrypoint.sh` 启动时把 `WEB_PLATFORM_API_URL / WEB_AGENT_WS_URL / WEB_GRAFANA_URL` 重写为 `dist/config.js`（拒绝引号/反斜杠防注入）；compose 以 env 透传。**同一镜像跨环境部署，改端点零镜像重建**。
+2. **Miniapp 同构处理**：nginx 启动命令以 `envsubst` 从 `config.js.template` 生成 `/config.js`；`App.tsx` 读取运行时值回退 VITE_*。
+3. **DB 备份/恢复工具链**：`tools/db-backup.ps1`（pg_dump -Fc 容器内落盘 → docker cp 取回——二进制安全，不经宿主管道；SHA256 校验和；KeepDays 保留策略）/ `tools/db-restore.ps1`（--clean --if-exists 幂等恢复；默认 dry-run，-Confirm 才执行）。Makefile `db-backup` / `db-restore`。`backups/` 入 .gitignore。
+4. **事故处置记录（外部事件，非本轮代码引入）**：两份 `.env` 与全部 workama-* 容器在本轮开始前被宿主侧清除。数据卷幸存 → 分区恢复：① postgres 数据卷密码仍为旧值而 env 为新值 → 容器内 `ALTER USER` 对齐；② 首次生成 ENCRYPTION_KEY 缺 base64 padding 致 Fernet 拒绝 → 重新生成为标准 44 字符；③ 全栈 18 容器重建后 healthy，数据完好（tester 账号/配置中心 revisions 保留）。教训已固化：dev 密钥由 CSPRNG 生成、单一来源 `deploy/compose/.env`（root .env 不再重建）。
+
+**活体验证（docker 栈）**：
+- web `/config.js` 由入口生成三键 JSON；index.html 含 script 标签且先于模块包加载；
+- **零重建改端点证明**：临时改 `VITE_GRAFANA_URL` → 仅 `up -d web`（容器级重建）→ `/config.js` 即时反映新 URL → 还原复验；
+- miniapp `/config.js` envsubst 输出正确；
+- 备份 roundtrip：插入探针表 → 备份(18.7MB+SHA256) → DROP 探针表 → dry-run 确认不误执行 → `-Confirm` 恢复 → 探针行回归 `1|roundtrip-20260823` → 清理探针表。
+
+**验证矩阵**：
+
+| 验证 | 结果 |
+| --- | --- |
+| platform-api pytest 全量 | **3656 passed / 20 skipped** |
+| web vitest | **234 passed / 234**（新增 config 解析 3 例：覆盖优先/空串回退/tokens 导出） |
+| secret-gate / port-policy | PASS / findings=[] |
+| 契约·文档·open-platform·prod-env 单测 | **15 tests OK** |
+| make smoke | completion_ok=true, websocket_ok=true |
+
+**诚实边界**：miniapp 仅平台 API 单键可运行时配置；Grafana 管理口令沿用旧数据卷内值（dev 无碍，生产用 prod override 显式注入）；agent-server 配置面为引导期基础设施（无请求期旋钮），维持 restart-required 边界不做伪热更。
+
+**git 状态**：分批暂存、未 commit 未 push。**status=candidate，GA 待人工签字。**
+
+## 10.20 sandbox-fleet 配置中心热集成（status=candidate）
+**目标**：沙箱运行参数（TTL/空闲/预热/容量/资源/提供商）从 ENV 静态值升级为控制台可视化配置，热生效；严格保持「DB(UI) > ENV > 代码默认」优先级。
+**本轮落地（candidate）**：
+1. **SCHEMA 扩展**：config_center 新增 `sandbox` 分组 11 键——idle/ttl/prewarm/max_total/max_per_workspace/nano_cpus（int 带范围校验）、memory/runtime（str）、provider（enum: docker|firecracker）、require_gvisor/require_microvm（bool）。全部非密钥请求期参数：reaper 循环、预热池维护、容量检查、新建容器即时读取，应用后无需重启。
+2. **导出视图补强**：`/internal/config/export` 新增 **`overrides`** 视图——仅含 DB(UI) 发布来源的非密钥键。消费方只应用 overrides 即可严格保持优先级：overrides 中不存在的键回落消费方本地基线，不会被解析后的默认值污染（旧 `values` 全量视图对多消费者语义有歧义）；向后兼容，Go 网关不受影响。
+3. **sandbox-fleet 热同步**：新增 `workama_sandbox/config_sync.py`——`ConfigSyncPoller` 按版本轮询 export（2s；失败指数退避 ≤8×，恢复即回常规；401 显式告警；version 未变不触发回调），与 Go 网关 configsync 同语义。`RuntimeSettings` 替代静态 settings 单例：HOT_KEYS 热区 + 启动期基础设施固定区（database_url/internal_token 等 restart 边界）；`apply_overrides` 先整体回落 ENV 基线再应用覆盖（UI 删除即回落、不残留上轮值），int/bool/str 类型收敛，脏值跳过保基线并告警，绝不因配置中心不可用阻断沙箱服务。lifespan 接线：`PLATFORM_API_URL` 为空即禁用同步仅走 ENV 基线。
+4. **compose**：sandbox-fleet 注入 `PLATFORM_API_URL: http://platform-api:8000`。
+
+**活体验证（docker 栈）**：
+- 发布 `sandbox_max_total=66` → fleet /healthz `capacity.maximum` 50→**66**（轮询周期内）；DELETE 覆盖 → 自动回落 **50**；
+- 发布 `sandbox_prewarm_size=3` → /healthz `prewarm.target` 2→**3**；DELETE → 回落 **2**；
+- make smoke：completion_ok=true, websocket_ok=true。
+
+**验证矩阵**：
+
+| 验证 | 结果 |
+| --- | --- |
+| platform-api 全量 pytest | **3657 passed / 20 skipped**（新增 export overrides 用例：ENV/默认来源不入视图、发布进入、密钥不进、删除移除） |
+| sandbox-fleet pytest | **63 passed**（新增 11 例：基线快照/删除回落/空集重置/类型收敛/脏值跳过/外键过滤/overrides 解析/旧版兼容/401·5xx·网络故障/version 归一） |
+| make smoke | completion_ok=true, websocket_ok=true |
+
+**诚实边界**：① provider/memory/runtime/require_* 变更仅对**新建容器**生效，存量沙箱保持原配置（容器不可变语义）；② 配置中心不可用时 fleet 按 ENV 基线继续服务（降级不阻断）；③ sandbox 分组无密钥字段，fleet 不消费 secrets 密文通道；④ agent-server 维持引导期基础设施边界不做伪热更（§10.19 已声明）。
+**git 状态**：分批暂存、未 commit 未 push。**status=candidate，GA 待人工签字。**

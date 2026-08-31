@@ -4,7 +4,14 @@ import { useLocale, LocaleToggle } from './locale'
 import type { Locale, MessageKey } from '@workama/i18n'
 
 type Row = Record<string, any>
-const apiBase = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:20200'
+
+// 运行时配置优先于构建期 VITE_*（nginx 容器启动时经 envsubst 生成 /config.js，
+// 见 compose miniapp.command 与 public/config.js.template）；空值逐级回退。
+type RuntimeConfig = { platformApiUrl?: string }
+const runtimeConfig: RuntimeConfig =
+  typeof window !== 'undefined' && (window as any).__WORKAMA_CONFIG__ ? (window as any).__WORKAMA_CONFIG__ : {}
+const apiBase: string =
+  runtimeConfig.platformApiUrl || import.meta.env.VITE_PLATFORM_API_URL || 'http://localhost:20200'
 let accessToken: string | null = null
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {

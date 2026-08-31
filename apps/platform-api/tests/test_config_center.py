@@ -499,6 +499,35 @@ async def test_export_runtime_includes_encrypted_secret_only(env):
     assert "smtp_password" not in out["secrets"]
 
 
+async def test_export_overrides_only_db_source(env):
+    """overrides 视图仅含 DB(UI) 发布键：ENV/默认来源键绝不出现，
+    消费方据此严格保持「DB(UI) > ENV > 默认」优先级（删除覆盖即回落）。"""
+    actor = _FakeActor()
+    # ENV fixture：rate_limit_default_per_min=60（source=env）；未发布的 sandbox_* 为 default。
+    out = await cc.export_runtime(actor)
+    assert "rate_limit_default_per_min" not in out["overrides"], "ENV 来源键不得进入 overrides"
+    assert "sandbox_max_total" not in out["overrides"], "默认来源键不得进入 overrides"
+    assert "sandbox_idle_seconds" not in out["overrides"]
+    # UI 发布 sandbox 键后进入 overrides；values 视图保持全量解析值不变。
+    await cc.put_values(ConfigUpdate(items=[
+        ConfigItem(key="sandbox_max_total", value=88),
+        ConfigItem(key="sandbox_require_gvisor", value=True),
+    ]), actor)
+    out2 = await cc.export_runtime(actor)
+    assert out2["overrides"]["sandbox_max_total"] == 88
+    assert out2["overrides"]["sandbox_require_gvisor"] is True
+    assert out2["values"]["sandbox_max_total"] == 88
+    # 密钥字段即使 DB 来源也不进 overrides（走 secrets 密文通道）。
+    await cc.put_values(ConfigUpdate(items=[ConfigItem(key="smtp_password", value="pw-123456")]), actor)
+    out3 = await cc.export_runtime(actor)
+    assert "smtp_password" not in out3["overrides"]
+    # 删除覆盖 → overrides 同步移除（消费方回落基线）。
+    await cc.delete_value("sandbox_max_total", actor)
+    out4 = await cc.export_runtime(actor)
+    assert "sandbox_max_total" not in out4["overrides"]
+    assert out4["values"]["sandbox_max_total"] == 50  # 默认值仍在解析视图
+
+
 async def test_watcher_survives_redis_and_db_errors(env):
     """Redis/DB 故障时 watcher 只跳过本轮，不抛出、不退出。"""
     import asyncio

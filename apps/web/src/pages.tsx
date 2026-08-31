@@ -39,7 +39,7 @@ export function ChatPage() { const { sessionId } = useParams(); return sessionId
 function ChatIndexPage() {
   const { t } = useLocale()
   const navigate = useNavigate()
-  const { items, loading, error, reload } = useList<Session>('/api/v1/sessions')
+  const { items, loading, error, reload } = useList<Session>('/api/v1/sessions?limit=20')
   const datasets = useList<Dataset>('/api/v1/datasets')
   const policies = useQuery({ queryKey: ['workama', '/api/v1/security/moderation-policies'], queryFn: () => api.get<ListResponse<Record<string, unknown>>>('/api/v1/security/moderation-policies') })
   const [familyId, setFamilyId] = useState<(typeof promptFamilies)[number]['id']>('decide')

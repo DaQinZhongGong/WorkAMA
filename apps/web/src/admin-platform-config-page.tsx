@@ -273,7 +273,7 @@ export default function AdminPlatformConfigPage() {
       const editing = secretEditing.has(field.key)
       if (!editing) {
         return (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="cfg-field-meta">
             <input
               type="password"
               value={KEEP}
@@ -346,8 +346,7 @@ export default function AdminPlatformConfigPage() {
     )
   }
 
-  const tabStyle = (active: boolean) =>
-    active ? { borderBottom: '2px solid var(--wama-accent, #2b6cb0)', fontWeight: 600 } : undefined
+  const tabStyle = (_active: boolean): React.CSSProperties | undefined => undefined
 
   return (
     <>
@@ -380,11 +379,21 @@ export default function AdminPlatformConfigPage() {
       />
       <Notice notice={notice} clear={() => setNotice('')} />
 
+      <div className="cfg-header-meta" style={{ marginBottom: 8 }}>
+        <span className="cfg-version-pill"><span>rev</span> <strong>{version}</strong> <span style={{ opacity: .6 }}>· {groups.length} groups · {groups.reduce((n,g)=>n+g.fields.length,0)} keys</span></span>
+        {dirtyItems.length>0 && <Badge tone="danger">{t('admin.config.dirtyBadge')} · {dirtyItems.length}</Badge>}
+        <span style={{ opacity: .75 }}>{'DB(UI) › ENV › 默认 · 非重启类热生效'}</span>
+      </div>
+      {groups.flatMap(g=>g.fields).some(f=>f.restart_required && dirty.has(f.key)) && (
+        <div className="cfg-restart-callout" role="status">
+          <span aria-hidden>⚠</span><span>{'含需重启项：保存后成为权威值，相关连接/密钥需重启生效'}</span>
+        </div>
+      )}
       <StateGate loading={loading} error={error} retry={reload}>
         <div
           role="tablist"
           aria-label={t('admin.config.title')}
-          style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--wama-border, #d8dee6)', marginBottom: 12, flexWrap: 'wrap' }}
+          className="cfg-tabs"
         >
           {groups.map((g) => (
             <button
@@ -397,7 +406,7 @@ export default function AdminPlatformConfigPage() {
               style={tabStyle(activeTab === g.key)}
             >
               {g.label}
-              {g.fields.some((f) => dirty.has(f.key)) ? ' •' : ''}
+              {g.fields.some((f) => dirty.has(f.key)) ? <span className="cfg-tab-dot" aria-hidden /> : null}
             </button>
           ))}
           <button
@@ -477,7 +486,7 @@ export default function AdminPlatformConfigPage() {
               return (
                 <Panel key={g.key} title={g.label} subtitle={g.key}>
                   <div style={{ marginBottom: 12 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 420 }} className="search-wrap">
+                    <label className="cfg-search-wrap">
                       <Search size={14} aria-hidden />
                       <input
                         type="search"
@@ -486,7 +495,6 @@ export default function AdminPlatformConfigPage() {
                         onChange={(e) => setQuery(e.target.value)}
                         aria-label={t('admin.config.searchPlaceholder')}
                         data-testid="cfg-search"
-                        style={{ flex: 1 }}
                       />
                     </label>
                   </div>
@@ -516,10 +524,10 @@ export default function AdminPlatformConfigPage() {
                             )}
                           </div>
                           {testResults[f.key] && (
-                            <small style={{ color: testResults[f.key].ok ? undefined : '#b00020' }} role="status">
+                            <span className={`cfg-test-result ${testResults[f.key].ok ? 'ok' : 'fail'}`} role="status">
                               {testResults[f.key].ok ? '✓ ' : '✗ '}
                               {testResults[f.key].detail}
-                            </small>
+                            </span>
                           )}
                         </Field>
                       ))}

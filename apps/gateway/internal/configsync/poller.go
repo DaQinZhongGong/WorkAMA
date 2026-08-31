@@ -78,7 +78,7 @@ func (p *Poller) interval() time.Duration {
 	if p.Interval > 0 {
 		return p.Interval
 	}
-	return 2 * time.Second
+	return 1 * time.Second
 }
 
 func (p *Poller) client() *http.Client {
@@ -198,3 +198,4 @@ func normalizeInt(v any) int64 {
 		return 0
 	}
 }
+

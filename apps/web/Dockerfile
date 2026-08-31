@@ -7,7 +7,7 @@ ENV BROWSER_EXECUTABLE=/usr/bin/chromium
 
 RUN corepack enable
 # Use a registry mirror to avoid network timeouts when reaching registry.npmjs.org
-# from inside Docker on constrained networks (npmmirror.com / 淘宝镜像).
+# from inside Docker on constrained networks (npmmirror.com / ??????).
 RUN pnpm config set registry https://registry.npmmirror.com
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json ./
@@ -43,4 +43,6 @@ ENV VITE_PLATFORM_API_URL=$VITE_PLATFORM_API_URL VITE_AGENT_WS_URL=$VITE_AGENT_W
 RUN pnpm --filter @workama/web build
 
 EXPOSE 3000
-CMD ["pnpm", "--filter", "@workama/web", "preview"]
+COPY apps/web/docker-entrypoint.sh /app/apps/web/docker-entrypoint.sh
+# runtime config injection (WEB_* env -> dist/config.js) before preview; see docker-entrypoint.sh
+ENTRYPOINT ["sh", "/app/apps/web/docker-entrypoint.sh"]
